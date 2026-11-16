@@ -1,5 +1,5 @@
 /* Service Worker: cache-first do app shell, com versão e limpeza de caches antigos. */
-const VERSION = 'v5'; // aumente a cada atualização do app para renovar o cache
+const VERSION = 'v6'; // aumente a cada atualização do app para renovar o cache
 const SHELL_CACHE = 'pwc-shell-' + VERSION;
 const CONFIG_CACHE = 'pwc-config'; // guarda nome/cor do app para o manifest personalizado
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
@@ -27,15 +27,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   const d = event.data || {};
   if (d.type !== 'config') return;
+  const hasIcon = typeof d.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(d.icon);
   const cfg = {
+    icon: hasIcon,
     name: String(d.name || '').slice(0, 40),
     color: /^#[0-9a-fA-F]{6}$/.test(d.color) ? d.color : null
   };
-  event.waitUntil(
-    caches.open(CONFIG_CACHE).then((c) => c.put('config', new Response(JSON.stringify(cfg), {
-      headers: { 'Content-Type': 'application/json' }
-    })))
-  );
+  event.waitUntil((async () => {
+    const c = await caches.open(CONFIG_CACHE);
+    await c.put('config', new Response(JSON.stringify(cfg), { headers: { 'Content-Type': 'application/json' } }));
+    // Ícone personalizado: guardado à parte e servido em ./custom-icon.png
+    if (hasIcon) await c.put('icon', await fetch(d.icon));
+    else await c.delete('icon');
+  })());
 });
 
 async function personalizedManifest(request) {
@@ -48,6 +52,12 @@ async function personalizedManifest(request) {
       const cfg = await cfgRes.json();
       if (cfg.name) { manifest.name = cfg.name; manifest.short_name = cfg.name.slice(0, 12); }
       if (cfg.color) manifest.theme_color = cfg.color;
+      if (cfg.icon) {
+        manifest.icons = [
+          { src: 'custom-icon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'custom-icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ];
+      }
     }
   } catch (e) { /* config ausente ou inválida: usa o manifest padrão */ }
   return new Response(JSON.stringify(manifest), {
@@ -63,6 +73,14 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.endsWith('/manifest.json')) {
     event.respondWith(personalizedManifest(req));
+    return;
+  }
+
+  if (url.pathname.endsWith('/custom-icon.png')) {
+    event.respondWith(
+      caches.open(CONFIG_CACHE).then((c) => c.match('icon'))
+        .then((r) => r || caches.match('./icon-512.png'))
+    );
     return;
   }
 

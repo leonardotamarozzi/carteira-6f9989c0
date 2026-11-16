@@ -35,13 +35,13 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v5` → `v6`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v6` → `v7`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 
 ## Personalização (tudo dentro do app)
 
-Opções → Chat de atendimento → **Personalizar aplicativo**: logo (PNG transparente, mostrada sobre fundo
+Opções → Chat de atendimento → **Personalizar aplicativo**: ícone da tela de início (imagem quadrada, recorte central), logo (PNG transparente, mostrada sobre fundo
 xadrez), senha, imagens do documento, cor de destaque, nome do app, backup JSON
 (exportar/importar) e apagar tudo (dupla confirmação).
 

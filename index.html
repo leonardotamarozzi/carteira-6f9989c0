@@ -76,6 +76,8 @@
   .muted { color: var(--muted); }
   .small { font-size: 14px; }
   .credits { text-align: center; white-space: pre-line; margin: 20px 16px 8px; }
+  .icon-preview { display: flex; justify-content: center; margin: 8px 0 12px; }
+  .icon-preview img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
   .sheet .list { margin: 8px 0 12px; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
   .stack > * + * { margin-top: 12px; }
@@ -388,7 +390,8 @@ const db = {
       appName: str(v.appName, '', 40).trim() || DEF.appName,
       accent: /^#[0-9a-fA-F]{6}$/.test(v.accent) ? v.accent : DEF.accent,
       logo: isImg(v.logo),
-      credits: str(v.credits, '', 300).trim()
+      credits: str(v.credits, '', 300).trim(),
+      icon: (typeof v.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v.icon)) ? v.icon : null
     };
   },
   wallets() {
@@ -525,6 +528,22 @@ async function compressImage(file, kind) {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+/* Ícone da tela de início: PNG quadrado 512x512, sem transparência (recorte central). */
+async function makeIcon(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('imagem inválida')); i.src = url; });
+    const w = img.naturalWidth, ht = img.naturalHeight;
+    if (!w || !ht) throw new Error('imagem vazia');
+    const side = Math.min(w, ht);
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 512, 512);
+    ctx.drawImage(img, (w - side) / 2, (ht - side) / 2, side, side, 0, 0, 512, 512);
+    return c.toDataURL('image/png');
+  } finally { URL.revokeObjectURL(url); }
 }
 const readDataURL = (file) => new Promise((res, rej) => {
   const r = new FileReader();
@@ -681,10 +700,14 @@ function applySettings() {
   root.setProperty('--accent', s.accent);
   root.setProperty('--on-accent', contrastWithWhite(s.accent) >= 4.5 ? '#FFFFFF' : '#111111');
   document.title = s.appName;
+  // Ícone: iPhone lê o apple-touch-icon; Android lê o manifest (servido pelo Service Worker).
+  const iconHref = s.icon || 'icon-192.png';
+  $('link[rel="apple-touch-icon"]').setAttribute('href', iconHref);
+  $('link[rel="icon"]').setAttribute('href', iconHref);
   $('meta[name="apple-mobile-web-app-title"]').setAttribute('content', s.appName);
   // Envia nome e cor para o Service Worker personalizar o manifest.json.
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then((reg) => reg.active && reg.active.postMessage({ type: 'config', name: s.appName, color: s.accent })).catch(() => {});
+    navigator.serviceWorker.ready.then((reg) => reg.active && reg.active.postMessage({ type: 'config', name: s.appName, color: s.accent, icon: s.icon })).catch(() => {});
   }
 }
 function logoNode(big) {
@@ -1192,7 +1215,7 @@ const screens = {
     const s = db.settings();
     const saveSettings = (patch, okMsg) => {
       const cur = db.settings();
-      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, ...patch };
+      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, icon: cur.icon, ...patch };
       if (store.set(K.settings, next)) { applySettings(); ui.toast(okMsg); return true; }
       return false;
     };
@@ -1215,6 +1238,25 @@ const screens = {
       h('div', { class: 'row-actions' },
         h('button', { type: 'button', class: 'btn outline', onclick: () => logoInput.click() }, s.logo ? 'Trocar logo' : 'Enviar logo'),
         s.logo ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ logo: null }, 'Logo removida.')) render(); } }, 'Remover logo') : null)));
+
+    // Ícone da tela de início
+    const iconInput = h('input', { type: 'file', id: 'iconInput', accept: 'image/*', class: 'sr-only', tabindex: '-1', 'aria-label': 'Arquivo do ícone' });
+    iconInput.addEventListener('change', async () => {
+      const file = iconInput.files && iconInput.files[0];
+      iconInput.value = '';
+      if (!file) return;
+      if (!/^image\//.test(file.type)) return ui.toast('Escolha uma imagem.');
+      try { const icon = await makeIcon(file); if (saveSettings({ icon }, 'Ícone atualizado.')) render(); }
+      catch (e) { ui.toast('Não foi possível ler esta imagem.'); }
+    });
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Ícone da tela de início'),
+      h('div', { class: 'icon-preview' }, h('img', { src: s.icon || 'icon-192.png', alt: 'Ícone atual', width: 96, height: 96 })),
+      h('p', { class: 'muted small' }, 'Escolha uma imagem quadrada (o centro dela será usado). Vale para quem instalar o app depois da troca: no iPhone, adicione de novo à Tela de Início; no Android, desinstale e instale de novo.'),
+      iconInput,
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn outline', onclick: () => iconInput.click() }, s.icon ? 'Trocar ícone' : 'Escolher ícone'),
+        s.icon ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ icon: null }, 'Ícone padrão restaurado.')) render(); } }, 'Usar ícone padrão') : null)));
 
     // 2 e 3. Senha e imagens do documento
     view.append(h('ul', { class: 'list' },
