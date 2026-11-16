@@ -1,0 +1,75 @@
+# Carteira de documentos (PWA offline)
+
+Site instalável, 100% offline e gratuito. HTML + CSS + JS puro, sem dependências,
+sem backend, sem analytics. Todos os dados ficam no `localStorage` do aparelho.
+
+## Arquivos
+
+| Arquivo | Função |
+| --- | --- |
+| `index.html` | App inteiro (CSS e JS embutidos: store, router, telas, utilitários) |
+| `manifest.json` | Manifesto do PWA (`start_url`/`scope` relativos, ícones `any` e `maskable`) |
+| `sw.js` | Service Worker: cache-first do app shell, versão de cache e limpeza no `activate` |
+| `icon-192.png`, `icon-512.png` | Ícones neutros |
+
+## Rodar localmente
+
+```bash
+cd pwa-carteira
+python -m http.server 8080
+```
+
+Abra `http://localhost:8080`. (Ou `npx serve .`.) Abrir o arquivo direto (`file://`) não ativa o Service Worker.
+
+## Instalar
+
+- **iPhone (Safari):** abra o endereço → botão Compartilhar → **Adicionar à Tela de Início**.
+- **Android (Chrome):** abra o endereço → menu ⋮ → **Instalar app** (ou o aviso de instalação).
+
+Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
+
+## Hospedar de graça
+
+- **GitHub Pages:** suba a pasta para um repositório → Settings → Pages → publicar a branch. Funciona em subpasta (`usuario.github.io/repo/`) porque tudo usa caminhos relativos.
+- **Netlify:** arraste a pasta `pwa-carteira` em app.netlify.com/drop.
+
+## Atualizar o app
+
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v5` → `v6`). O novo
+Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
+próxima abertura do app.
+
+## Personalização (tudo dentro do app)
+
+Opções → Chat de atendimento → **Personalizar aplicativo**: logo (PNG transparente, mostrada sobre fundo
+xadrez), senha, imagens do documento, cor de destaque, nome do app, backup JSON
+(exportar/importar) e apagar tudo (dupla confirmação).
+
+O nome e a cor também vão para o `manifest.json`: o Service Worker recebe esses
+valores da página e serve o manifesto já personalizado. Em aparelhos onde o app
+já foi instalado, o nome do ícone só muda ao reinstalar.
+
+## Escolhas feitas (onde o pedido deixava em aberto)
+
+- **Sem Tailwind:** CSS próprio embutido; nada externo para cachear.
+- **Fonte:** fonte do sistema (`system-ui`), já que fontes externas não eram permitidas.
+- **Sessão:** o app pede a senha a cada abertura/recarga (o desbloqueio fica só na memória).
+- **Após criar a senha** o app leva ao login, como no fluxo pedido.
+- **Formulário de carteira** em tela cheia (rota `#/carteira/<id>`), para o botão Voltar do celular funcionar.
+- **Primeiro serviço:** "2ª via de". Toque simples abre a tela do serviço; clique triplo ou pressão longa de 1,2 s renomeia (no teclado: F2); a tela não mostra legenda sobre isso. Movimento acima de 10 px cancela a pressão longa.
+- **Termos, Privacidade e Ajuda** abertos pelo rodapé do login ficam somente leitura; edição só depois de entrar.
+- **Anexos do FAQ:** imagens são comprimidas (1024 px, JPEG 0,8); PDFs são guardados como estão, até 3 MB cada.
+- **Imagens:** documentos (frente, verso, QR Code) em JPEG 0,8 até 1024 px; logo sempre PNG até 512 px (preserva transparência); avatar até 512 px, PNG se tiver transparência.
+- **Chat:** guarda as últimas 200 mensagens; resposta automática configurável pelo ícone de engrenagem.
+- **Backup importado** desliga a biometria (a credencial pertence ao aparelho de origem) e pede login de novo.
+- **Cor de destaque com pouco contraste:** o app avisa e escolhe texto branco ou preto nos botões automaticamente.
+
+## Segurança e limitações conhecidas
+
+- **Senha:** só é guardado `SHA-256(salt + ":" + senha)` com salt aleatório de 16 bytes. Nunca em texto puro. Usa `crypto.subtle`; fora de HTTPS/localhost (onde `crypto.subtle` não existe) usa uma implementação SHA-256 em JS embutida, com o mesmo resultado.
+- **A senha é uma tela de privacidade, não criptografia.** Os dados no `localStorage` não são cifrados: quem tiver acesso ao navegador do aparelho (ferramentas de desenvolvedor) consegue lê-los. Um hash SHA-256 simples também é rápido de testar por força bruta se alguém copiar os dados; use uma senha longa.
+- **"Esqueci minha senha"** só pode apagar os dados e recomeçar, porque não há servidor para recuperar a senha. Exporte backups.
+- **Biometria (WebAuthn)** exige HTTPS (ou `localhost`) e um leitor de digital/rosto no aparelho. Sem servidor, a verificação confirma apenas que o dono do aparelho passou na biometria; não há validação criptográfica da assinatura. Se indisponível, o app mostra o motivo e mantém o interruptor desligado.
+- **Espaço:** o `localStorage` tem cerca de 5 MB. Se encher, o app avisa e não perde o que já estava salvo; o formulário continua aberto.
+- **Texto do usuário** é inserido sempre com `textContent` (nunca `innerHTML`); imagens importadas só são aceitas como `data:image/...` em base64.
+- **iOS:** vibração no erro de senha não existe no Safari (só no Android). O download do backup abre a folha de compartilhamento do iOS.

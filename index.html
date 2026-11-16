@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="Carteira de documentos offline e personalizável.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Minha Carteira">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Minha Carteira</title>
+<style>
+  :root {
+    --accent: #0B3A5C;
+    --on-accent: #FFFFFF;
+    --bg: #EEEEEE;
+    --surface: #FFFFFF;
+    --text: #1A1A1A;
+    --muted: #5C5F63;
+    --tab-off: #6B6B6B;
+    --line: #DCDCDC;
+    --circle: #D9D9D9;
+    --danger: #B3261E;
+    --disabled: #A8A8A8;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  :focus:not(:focus-visible) { outline: none; }
+  .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .ico { display: inline-flex; width: 24px; height: 24px; flex: none; }
+  .ico svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- Estrutura ---------- */
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  .top { flex: none; background: var(--surface); padding-top: env(safe-area-inset-top); border-bottom: 1px solid var(--line); }
+  .top-inner { height: 52px; display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; padding: 0 max(4px, env(safe-area-inset-left)); }
+  .top h1 { margin: 0; font-size: 17px; font-weight: 500; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; border-radius: 50%; color: var(--accent); }
+  .icon-btn:active { background: rgba(0,0,0,.06); }
+  #view { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 16px 28px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  #view > * { max-width: 560px; margin-left: auto; margin-right: auto; }
+  body.gate #view { background: var(--surface); }
+  .tabs { flex: none; background: var(--surface); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); padding-bottom: env(safe-area-inset-bottom); }
+  .tabs[hidden] { display: none; }
+  .tab { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--tab-off); font-size: 12px; background: none; border: 0; }
+  .tab[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+  /* ---------- Splash ---------- */
+  #splash { position: fixed; inset: 0; z-index: 100; background: #fff; display: flex; align-items: center; justify-content: center; transition: opacity .25s ease; }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash img { max-width: 60vw; max-height: 40vh; object-fit: contain; }
+  .logo-ph { width: 112px; height: 112px; border-radius: 28px; background: var(--circle); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .logo-ph .ico { width: 56px; height: 56px; }
+
+  /* ---------- Tipografia e blocos ---------- */
+  h2.title { font-size: 26px; font-weight: 700; margin: 8px 0 6px; line-height: 1.2; }
+  h2.section { font-size: 16px; font-weight: 700; margin: 4px 0 12px; }
+  h3.sub { font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 14px; }
+  .credits { text-align: center; white-space: pre-line; margin: 20px 16px 8px; }
+  .sheet .list { margin: 8px 0 12px; }
+  .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .stack > * + * { margin-top: 12px; }
+  .row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row-actions > .btn { flex: 1 1 140px; }
+
+  /* ---------- Botões ---------- */
+  .btn { min-height: 48px; padding: 0 18px; border-radius: 12px; border: 0; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; width: 100%; }
+  .btn.primary { background: var(--accent); color: var(--on-accent); border-radius: 26px; min-height: 52px; font-size: 17px; }
+  .btn.primary:disabled { background: var(--disabled); color: #fff; cursor: default; }
+  .btn.outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.danger { background: var(--danger); color: #fff; }
+  .btn.danger-outline { background: transparent; color: var(--danger); border: 1.5px solid var(--danger); }
+  .btn.small { min-height: 44px; width: auto; padding: 0 14px; font-size: 15px; }
+  .btn:active:not(:disabled) { filter: brightness(.92); }
+
+  /* ---------- Formulários ---------- */
+  .field { margin-bottom: 14px; }
+  .field label, .label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .input, .field input[type=text], .field textarea {
+    width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid #9A9A9A; border-radius: 10px; background: #fff; font-size: 16px;
+  }
+  .field textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
+  .pw-wrap { position: relative; }
+  .pw-wrap .input { padding-right: 52px; }
+  .pw-wrap .icon-btn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .err { color: var(--danger); font-size: 14px; font-weight: 600; min-height: 20px; margin: 4px 0 8px; }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  @media (prefers-reduced-motion: reduce) { .shake { animation: none; } #splash { transition: none; } }
+
+  /* ---------- Login ---------- */
+  .gate-logo { display: flex; justify-content: center; margin: 12px 0 28px; }
+  .gate-logo img { max-width: 70%; max-height: 140px; object-fit: contain; }
+  .forgot { display: block; text-align: right; color: var(--accent); font-weight: 600; text-decoration: none; padding: 10px 0; margin-bottom: 18px; }
+  .gate-footer { text-align: center; margin-top: 28px; color: var(--muted); }
+  .gate-footer a { color: var(--accent); font-weight: 700; text-decoration: none; display: inline-block; padding: 12px 6px; }
+
+  /* ---------- Carteira ---------- */
+  .wcard { width: 100%; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 0; border-radius: var(--radius); padding: 14px; margin-bottom: 12px; text-align: left; min-height: 80px; }
+  .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--circle); overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .wlines { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .wlines span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl1 { font-size: 13px; color: var(--muted); }
+  .wl2 { font-weight: 700; }
+  .wl3 { font-size: 14px; color: var(--muted); }
+  .chev { color: var(--tab-off); }
+
+  /* ---------- Listas (Serviços / Opções) ---------- */
+  .list { list-style: none; margin: 0 0 16px; padding: 0; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+  .list li + li .lrow { border-top: 1px solid var(--line); }
+  .lrow { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 16px; min-height: 64px; background: none; border: 0; text-align: left; text-decoration: none; color: inherit; }
+  .lrow:active { background: #F6F6F6; }
+  .lrow .txt { flex: 1; min-width: 0; }
+  .circle { width: 40px; height: 40px; border-radius: 50%; background: #E3E3E3; color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .circle .ico { width: 22px; height: 22px; }
+  .no-callout { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+  /* ---------- Imagens ---------- */
+  .slots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  .slot { background: #F5F5F5; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .slot .label { margin: 0; }
+  .slot-preview { width: 100%; aspect-ratio: 1.6; border: 1.5px dashed #A0A0A0; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--muted); padding: 0; }
+  .slot-preview.round { width: 96px; height: 96px; aspect-ratio: auto; border-radius: 50%; margin: 0 auto; background: var(--circle); border-style: solid; border-color: transparent; color: #fff; }
+  .slot-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .slot-preview.has { border-style: solid; border-color: transparent; }
+  .slot .row-actions .btn { flex: 1 1 auto; padding: 0 8px; }
+  .checker { background-color: #fff; background-image: conic-gradient(#CFCFCF 25%, #fff 0 50%, #CFCFCF 0 75%, #fff 0); background-size: 18px 18px; border-radius: 12px; min-height: 160px; display: flex; align-items: center; justify-content: center; padding: 16px; margin-bottom: 12px; border: 1px solid var(--line); }
+  .checker img { max-width: 100%; max-height: 180px; object-fit: contain; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+  .thumb { border: 0; padding: 0; background: #F2F2F2; border-radius: 8px; aspect-ratio: 1; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ---------- Modal / Visualizador / Toast ---------- */
+  .backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: #fff; width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 90dvh; overflow-y: auto; }
+  .sheet h2 { font-size: 19px; margin: 0 0 12px; }
+  .sheet .row-actions { margin-top: 8px; }
+  @media (min-width: 640px) { .backdrop { align-items: center; } .sheet { border-radius: 18px; } }
+  .viewer { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .viewer .icon-btn { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 8px; color: #fff; background: rgba(255,255,255,.15); }
+  #toast { position: fixed; left: 50%; top: calc(62px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 70; background: #222; color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 15px; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #toast.show { opacity: 1; }
+
+  /* ---------- FAQ ---------- */
+  details.faq { background: var(--surface); border-radius: 12px; margin-bottom: 10px; }
+  details.faq summary { padding: 14px 16px; font-weight: 600; min-height: 48px; cursor: pointer; }
+  details.faq .faq-body { padding: 0 16px 14px; white-space: pre-wrap; }
+  .files { list-style: none; padding: 0; margin: 0 0 12px; }
+  .files li { display: flex; align-items: center; gap: 10px; background: var(--surface); border-radius: 12px; padding: 8px 8px 8px 12px; margin-bottom: 8px; }
+  .files .fopen { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 0; min-height: 44px; display: flex; align-items: center; gap: 10px; }
+  .files .fname { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .files .fsize { display: block; font-size: 13px; color: var(--muted); }
+
+  /* ---------- Chat ---------- */
+  #view.chat { display: flex; flex-direction: column; padding: 0; }
+  #view.chat > * { max-width: none; width: 100%; }
+  .msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.me { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: #fff; border-bottom-left-radius: 4px; }
+  .msg time { display: block; font-size: 11px; opacity: .75; margin-top: 2px; }
+  .composer { flex: none; display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid var(--line); }
+  .composer .input { flex: 1; min-height: 48px; }
+  .composer .icon-btn { background: var(--accent); color: var(--on-accent); }
+
+  /* ---------- Interruptor ---------- */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .switch { width: 56px; height: 34px; border-radius: 17px; border: 0; background: #9E9E9E; position: relative; flex: none; padding: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(22px); }
+  .switch[aria-disabled="true"] { opacity: .55; }
+  .notice { background: #FFF4E5; color: #5A3B00; border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-top: 12px; }
+  .prose { white-space: pre-wrap; }
+  .color-row { display: flex; align-items: center; gap: 12px; }
+  .color-row input[type=color] { width: 56px; height: 48px; border: 1px solid #9A9A9A; border-radius: 10px; padding: 2px; background: #fff; }
+</style>
+</head>
+<body>
+<div id="splash" aria-hidden="true"></div>
+<div id="app">
+  <header class="top">
+    <div class="top-inner">
+      <span id="hdrLeft"></span>
+      <h1 id="hdrTitle" tabindex="-1"></h1>
+      <span id="hdrRight"></span>
+    </div>
+  </header>
+  <main id="view"></main>
+  <nav class="tabs" id="tabbar" aria-label="Navegação principal" hidden>
+    <button class="tab" type="button" data-tab="carteira" data-href="#/carteira"></button>
+    <button class="tab" type="button" data-tab="servicos" data-href="#/servicos"></button>
+    <button class="tab" type="button" data-tab="opcoes" data-href="#/opcoes"></button>
+  </nav>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript>Ative o JavaScript para usar este aplicativo.</noscript>
+
+<script>
+'use strict';
+
+/* ======================================================================
+   Ícones SVG (conteúdo estático, nunca dados do usuário)
+   ====================================================================== */
+const ICONS = {
+  wallet: '<path d="M4 7.5V6a2 2 0 0 1 2-2h11"/><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M21 11.5h-4a2 2 0 0 0 0 4h4"/>',
+  tagHeart: '<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M8.6 8.6c.7-1 2.2-.9 2.6.3.4-1.2 1.9-1.3 2.6-.3.7 1 0 2.3-2.6 4.1-2.6-1.8-3.3-3.1-2.6-4.1z"/>',
+  menu: '<path d="M4 6.5h16M4 12h16M4 17.5h16"/>',
+  chevR: '<path d="m9 6 6 6-6 6"/>',
+  chevL: '<path d="m15 6-6 6 6 6"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3.5 3.5l17 17"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>',
+  finger: '<path d="M6.3 17.5A9.5 9.5 0 0 1 5.5 13v-1a6.5 6.5 0 0 1 11.8-3.8"/><path d="M18.5 12v1a13 13 0 0 1-.8 4.4"/><path d="M9 20a12 12 0 0 0 2-7v-1a1 1 0 0 1 2 0v1a15 15 0 0 1-1.2 6"/><path d="M8.5 12a3.5 3.5 0 0 1 7 0v1.5a17 17 0 0 1-.6 4.3"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.6"/><path d="M12 16.8h.01"/>',
+  headset: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="13.5" width="4" height="6" rx="1.5"/><rect x="17" y="13.5" width="4" height="6" rx="1.5"/><path d="M19 19.5a3 3 0 0 1-3 2.5h-3"/>',
+  doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  send: '<path d="M4 12 20 4l-6 16-3-7z"/><path d="m11 13 9-9"/>',
+  person: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+};
+
+/* ======================================================================
+   Utilitários
+   ====================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const safeId = (v, fallback) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v)) ? v : fallback;
+const str = (v, def = '', max = 2000) => (typeof v === 'string' ? v.slice(0, max) : def);
+const isImg = (v) => (typeof v === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v)) ? v : null;
+const isFileData = (v) => (typeof v === 'string' && /^data:(image\/(png|jpeg|webp|gif)|application\/pdf);base64,[A-Za-z0-9+/=]+$/.test(v)) ? v : null;
+
+/* Cria elementos com segurança: textos sempre via TextNode (nunca innerHTML). */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'value') el.value = v;
+    else if (v === true) el.setAttribute(k, '');
+    else el.setAttribute(k, String(v));
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+function icon(name) {
+  const s = document.createElement('span');
+  s.className = 'ico';
+  s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = '<svg viewBox="0 0 24 24">' + ICONS[name] + '</svg>'; // estático
+  return s;
+}
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1).replace('.', ',') + ' KB';
+  return (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+}
+const dataUrlBytes = (d) => Math.floor((d.length - d.indexOf(',') - 1) * 3 / 4);
+function randBytes(n) {
+  const a = new Uint8Array(n);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for (let i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256);
+  return a;
+}
+const toHex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) { /* sem suporte */ } };
+
+/* ======================================================================
+   Criptografia: SHA-256 com salt. Usa crypto.subtle; sem ele (página fora
+   de HTTPS/localhost), usa uma implementação JS própria de SHA-256.
+   ====================================================================== */
+const SHA = (() => {
+  const primes = []; for (let n = 2; primes.length < 64; n++) if (primes.every((p) => n % p)) primes.push(n);
+  const frac = (x) => Math.floor((x - Math.floor(x)) * 4294967296) >>> 0;
+  return { K: primes.map((p) => frac(Math.cbrt(p))), H: primes.slice(0, 8).map((p) => frac(Math.sqrt(p))) };
+})();
+function sha256Js(bytes) {
+  const ror = (x, n) => (x >>> n) | (x << (32 - n));
+  const len = bytes.length, total = ((len + 9 + 63) >> 6) << 6;
+  const m = new Uint8Array(total); m.set(bytes); m[len] = 0x80;
+  const dv = new DataView(m.buffer);
+  dv.setUint32(total - 4, (len * 8) >>> 0); dv.setUint32(total - 8, Math.floor(len / 536870912));
+  const H = SHA.H.slice(), W = new Uint32Array(64);
+  for (let i = 0; i < total; i += 64) {
+    for (let t = 0; t < 16; t++) W[t] = dv.getUint32(i + t * 4);
+    for (let t = 16; t < 64; t++) {
+      const x = W[t - 15], y = W[t - 2];
+      W[t] = (W[t - 16] + (ror(x, 7) ^ ror(x, 18) ^ (x >>> 3)) + W[t - 7] + (ror(y, 17) ^ ror(y, 19) ^ (y >>> 10))) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, hh] = H;
+    for (let t = 0; t < 64; t++) {
+      const t1 = (hh + (ror(e, 6) ^ ror(e, 11) ^ ror(e, 25)) + ((e & f) ^ (~e & g)) + SHA.K[t] + W[t]) >>> 0;
+      const t2 = ((ror(a, 2) ^ ror(a, 13) ^ ror(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    [a, b, c, d, e, f, g, hh].forEach((v, k) => { H[k] = (H[k] + v) >>> 0; });
+  }
+  return H.map((x) => x.toString(16).padStart(8, '0')).join('');
+}
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  if (window.crypto && crypto.subtle) {
+    try { return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))); } catch (e) { /* cai no fallback */ }
+  }
+  return sha256Js(bytes);
+}
+
+/* ======================================================================
+   Store: localStorage com try/catch, padrões e aviso de cota cheia
+   ====================================================================== */
+const K = {
+  settings: 'pwc.settings', auth: 'pwc.auth', wallets: 'pwc.wallets', services: 'pwc.services',
+  faq: 'pwc.faq', faqFiles: 'pwc.faqFiles', chat: 'pwc.chat', texts: 'pwc.texts'
+};
+const DEF = {
+  appName: 'Minha Carteira',
+  accent: '#0B3A5C',
+  wallets: () => [{ id: 'exemplo', tipo: 'Documento de exemplo', nome: 'Seu nome aqui', numero: 'Nº 0000000', front: null, back: null, qr: null, avatar: null }],
+  services: () => [{ id: 's1', label: '2ª via de' }],
+  faq: () => [
+    { q: 'Onde meus dados ficam guardados?', a: 'Somente neste aparelho, no armazenamento do navegador. Nada é enviado pela internet.' },
+    { q: 'Funciona sem internet?', a: 'Sim. Depois da primeira abertura, o aplicativo funciona offline.' },
+    { q: 'Esqueci minha senha. E agora?', a: 'Como não há servidor, a senha não pode ser recuperada. Em "Esqueci minha senha" você pode apagar os dados e recomeçar. Exporte backups em Opções > Chat de atendimento > Personalizar aplicativo.' }
+  ],
+  autoReply: 'Recebemos sua mensagem. Este é um atendimento automático que funciona sem internet.',
+  termos: 'Este aplicativo guarda informações somente neste aparelho. Você é responsável pelo conteúdo que cadastra e por guardar a sua senha.\n\nO aplicativo é fornecido como está, sem garantias.\n\nEdite este texto em Opções > Termos e condições de uso.',
+  privacidade: 'Seus dados ficam apenas neste aparelho, no armazenamento do navegador. Nada é enviado para servidores e não há coleta de estatísticas.\n\nAo limpar os dados do navegador ou usar "Apagar todos os dados", as informações são removidas.\n\nEdite este texto em Opções > Política de privacidade.'
+};
+
+const store = {
+  get(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? null : JSON.parse(raw);
+    } catch (e) { return null; } // ausente, bloqueado ou corrompido
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      const quota = e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22);
+      ui.toast(quota
+        ? 'Espaço cheio: não foi possível salvar. Remova imagens ou arquivos e tente de novo. Nada foi perdido.'
+        : 'Não foi possível salvar neste navegador. Nada foi perdido.');
+      return false;
+    }
+  }
+};
+
+/* Leitores de dados: sempre limpam e validam o que vem do armazenamento. */
+const db = {
+  settings() {
+    const v = store.get(K.settings) || {};
+    return {
+      appName: str(v.appName, '', 40).trim() || DEF.appName,
+      accent: /^#[0-9a-fA-F]{6}$/.test(v.accent) ? v.accent : DEF.accent,
+      logo: isImg(v.logo),
+      credits: str(v.credits, '', 300).trim()
+    };
+  },
+  wallets() {
+    const v = store.get(K.wallets);
+    if (!Array.isArray(v)) return DEF.wallets();
+    return v.filter((o) => o && typeof o === 'object').map((o, i) => ({
+      id: safeId(o.id, 'w' + i), tipo: str(o.tipo, '', 80), nome: str(o.nome, '', 120), numero: str(o.numero, '', 60),
+      front: isImg(o.front), back: isImg(o.back), qr: isImg(o.qr), avatar: isImg(o.avatar)
+    }));
+  },
+  services() {
+    const v = store.get(K.services);
+    if (!Array.isArray(v) || !v.length) return DEF.services();
+    return v.filter((o) => o && typeof o === 'object').map((o, i) => ({ id: safeId(o.id, 's' + i), label: str(o.label, '', 60) || '2ª via de' }));
+  },
+  faq() {
+    const v = store.get(K.faq);
+    if (!Array.isArray(v)) return DEF.faq();
+    return v.filter((o) => o && typeof o === 'object').map((o) => ({ q: str(o.q, '', 300), a: str(o.a, '', 5000) }));
+  },
+  faqFiles() {
+    const v = store.get(K.faqFiles);
+    if (!Array.isArray(v)) return [];
+    return v.filter((o) => o && isFileData(o.data)).map((o, i) => ({
+      id: safeId(o.id, 'f' + i), name: str(o.name, 'arquivo', 120) || 'arquivo', type: o.data.startsWith('data:application/pdf') ? 'pdf' : 'image',
+      size: dataUrlBytes(o.data), data: o.data
+    }));
+  },
+  chat() {
+    const v = store.get(K.chat) || {};
+    const msgs = Array.isArray(v.msgs) ? v.msgs : [];
+    return {
+      auto: typeof v.auto === 'string' ? v.auto.slice(0, 1000) : DEF.autoReply,
+      msgs: msgs.filter((m) => m && (m.from === 'me' || m.from === 'bot') && typeof m.text === 'string')
+        .map((m) => ({ from: m.from, text: m.text.slice(0, 2000), t: Number(m.t) || 0 })).slice(-200)
+    };
+  },
+  texts() {
+    const v = store.get(K.texts) || {};
+    return { termos: str(v.termos, DEF.termos, 20000), privacidade: str(v.privacidade, DEF.privacidade, 20000) };
+  }
+};
+
+/* ======================================================================
+   Autenticação: só guarda salt + hash. Biometria via WebAuthn local.
+   ====================================================================== */
+const auth = {
+  get() {
+    const v = store.get(K.auth) || {};
+    const bio = v.bio && typeof v.bio === 'object' ? v.bio : {};
+    return {
+      salt: str(v.salt, '', 64), hash: str(v.hash, '', 64),
+      bio: { enabled: bio.enabled === true && typeof bio.credId === 'string', credId: str(bio.credId, '', 1024) }
+    };
+  },
+  hasPassword() { const a = this.get(); return /^[0-9a-f]{64}$/.test(a.hash) && a.salt.length >= 16; },
+  async setPassword(pw) {
+    const a = this.get();
+    a.salt = toHex(randBytes(16));
+    a.hash = await sha256Hex(a.salt + ':' + pw);
+    return store.set(K.auth, a);
+  },
+  async check(pw) {
+    const a = this.get();
+    if (!a.hash) return false;
+    return (await sha256Hex(a.salt + ':' + pw)) === a.hash;
+  },
+  setBio(bio) { const a = this.get(); a.bio = bio; return store.set(K.auth, a); }
+};
+
+async function bioSupport() {
+  if (!window.isSecureContext) return { ok: false, reason: 'A biometria só funciona em conexão segura (HTTPS). Abra o aplicativo por um endereço https:// para ativar.' };
+  if (!window.PublicKeyCredential || !navigator.credentials) return { ok: false, reason: 'Este navegador não oferece acesso por biometria (WebAuthn).' };
+  try {
+    const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (!ok) return { ok: false, reason: 'Nenhum leitor de digital ou reconhecimento facial disponível neste aparelho ou navegador.' };
+  } catch (e) {
+    return { ok: false, reason: 'Não foi possível verificar a biometria neste aparelho.' };
+  }
+  return { ok: true };
+}
+async function bioRegister() {
+  const cred = await navigator.credentials.create({ publicKey: {
+    challenge: randBytes(32),
+    rp: { name: db.settings().appName },
+    user: { id: randBytes(16), name: 'usuario-local', displayName: 'Usuário' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+    timeout: 60000, attestation: 'none'
+  } });
+  return b64url(cred.rawId);
+}
+async function bioVerify(credId) {
+  const res = await navigator.credentials.get({ publicKey: {
+    challenge: randBytes(32), timeout: 60000, userVerification: 'required',
+    allowCredentials: [{ type: 'public-key', id: fromB64url(credId) }]
+  } });
+  return !!res;
+}
+
+/* ======================================================================
+   Imagens: compressão via canvas antes de salvar
+   doc: máx. 1024 px, JPEG 0,8 · logo: máx. 512 px, sempre PNG
+   avatar: máx. 512 px, PNG se houver transparência, senão JPEG
+   ====================================================================== */
+async function compressImage(file, kind) {
+  const max = kind === 'doc' ? 1024 : 512;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('imagem inválida'));
+      i.src = url;
+    });
+    let w = img.naturalWidth, ht = img.naturalHeight;
+    if (!w || !ht) throw new Error('imagem vazia');
+    const s = Math.min(1, max / Math.max(w, ht));
+    w = Math.max(1, Math.round(w * s)); ht = Math.max(1, Math.round(ht * s));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = ht;
+    const ctx = c.getContext('2d');
+    if (kind === 'doc') {
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, ht);
+      ctx.drawImage(img, 0, 0, w, ht);
+      return c.toDataURL('image/jpeg', 0.8);
+    }
+    ctx.drawImage(img, 0, 0, w, ht);
+    if (kind === 'logo') return c.toDataURL('image/png'); // preserva o canal alpha
+    const px = ctx.getImageData(0, 0, w, ht).data;
+    let alpha = false;
+    for (let i = 3; i < px.length; i += 4) if (px[i] < 255) { alpha = true; break; }
+    return alpha ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.85);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+const readDataURL = (file) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result);
+  r.onerror = () => rej(r.error);
+  r.readAsDataURL(file);
+});
+
+/* ======================================================================
+   UI: toast, modal, confirmação, formulário, visualizador
+   ====================================================================== */
+const ui = {
+  layers: [],
+  toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => t.classList.remove('show'), 3200);
+  },
+  /* Camada sobreposta com foco preso e Esc para fechar. */
+  layer(el, onDismiss) {
+    const prev = document.activeElement;
+    const close = () => {
+      el.remove();
+      this.layers = this.layers.filter((l) => l.close !== close);
+      document.removeEventListener('keydown', onKey, true);
+      if (prev && prev.isConnected) prev.focus();
+    };
+    const onKey = (e) => {
+      if (this.layers[this.layers.length - 1].close !== close) return;
+      if (e.key === 'Escape') { e.preventDefault(); close(); onDismiss && onDismiss(); }
+      if (e.key === 'Tab') {
+        const f = [...el.querySelectorAll('button, input, textarea, a[href], [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+        if (!f.length) return;
+        if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.body.append(el);
+    this.layers.push({ close, onDismiss });
+    return close;
+  },
+  closeAll() { [...this.layers].reverse().forEach((l) => { l.close(); l.onDismiss && l.onDismiss(); }); },
+  modal({ title, body, actions, onDismiss }) {
+    const tid = 'm' + uid();
+    const form = h('form', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid, novalidate: true },
+      h('h2', { id: tid }, title), body,
+      h('div', { class: 'row-actions' }, actions.map((a) =>
+        h('button', { type: a.submit ? 'submit' : 'button', class: 'btn ' + (a.kind || 'outline'), onclick: a.submit ? null : a.onClick }, a.label)))
+    );
+    const submitAct = actions.find((a) => a.submit);
+    form.addEventListener('submit', (e) => { e.preventDefault(); submitAct && submitAct.onClick(); });
+    const back = h('div', { class: 'backdrop' }, form);
+    back.addEventListener('click', (e) => { if (e.target === back) { close(); onDismiss && onDismiss(); } });
+    const close = this.layer(back, onDismiss);
+    setTimeout(() => {
+      const first = form.querySelector('input, textarea') || form.querySelector('button[type=submit]') || form.querySelector('button');
+      first && first.focus();
+    }, 30);
+    return close;
+  },
+  confirm(title, message, okLabel = 'Confirmar', danger = false) {
+    return new Promise((resolve) => {
+      let done = false;
+      const end = (v) => { if (!done) { done = true; resolve(v); } };
+      const close = this.modal({
+        title, body: h('p', { class: 'muted' }, message), onDismiss: () => end(false),
+        actions: [
+          { label: 'Cancelar', kind: 'outline', onClick: () => { close(); end(false); } },
+          { label: okLabel, kind: danger ? 'danger' : 'primary', submit: true, onClick: () => { close(); end(true); } }
+        ]
+      });
+    });
+  },
+  form(title, fields, okLabel = 'Salvar') {
+    return new Promise((resolve) => {
+      let done = false;
+      const end = (v) => { if (!done) { done = true; resolve(v); } };
+      const inputs = {};
+      const body = h('div', null, fields.map((f) => {
+        const id = 'f' + uid();
+        const el = f.multiline
+          ? h('textarea', { id, rows: f.rows || 6, maxlength: f.max || 5000 })
+          : h('input', { id, type: 'text', maxlength: f.max || 200, autocomplete: 'off' });
+        el.value = f.value || '';
+        inputs[f.name] = el;
+        return h('div', { class: 'field' }, h('label', { for: id }, f.label), el);
+      }));
+      const close = this.modal({
+        title, body, onDismiss: () => end(null),
+        actions: [
+          { label: 'Cancelar', kind: 'outline', onClick: () => { close(); end(null); } },
+          { label: okLabel, kind: 'primary', submit: true, onClick: () => {
+            const out = {};
+            for (const k in inputs) out[k] = inputs[k].value;
+            close(); end(out);
+          } }
+        ]
+      });
+    });
+  },
+  viewer(src, label) {
+    const closeBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Fechar imagem' }, icon('close'));
+    const el = h('div', { class: 'viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': label || 'Imagem' },
+      h('img', { src, alt: label || 'Imagem' }), closeBtn);
+    const close = this.layer(el);
+    el.addEventListener('click', () => close());
+    setTimeout(() => closeBtn.focus(), 30);
+  }
+};
+
+/* ======================================================================
+   Layout: cabeçalho, abas e aplicação das personalizações
+   ====================================================================== */
+const app = { unlocked: false, navCount: 0 };
+const view = $('#view');
+
+function setHeader(title, opts = {}) {
+  $('#hdrTitle').textContent = title;
+  const left = $('#hdrLeft'), right = $('#hdrRight');
+  left.replaceChildren(); right.replaceChildren();
+  if (opts.back) {
+    left.append(h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Voltar', onclick: () => {
+      if (app.navCount > 0) history.back(); else go(opts.back, { replace: true });
+    } }, icon('chevL')));
+  }
+  if (opts.action) right.append(opts.action);
+}
+function setTabs(active) {
+  const bar = $('#tabbar');
+  bar.hidden = !active;
+  bar.querySelectorAll('.tab').forEach((b) => {
+    if (b.dataset.tab === active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+function buildTabs() {
+  const defs = { carteira: ['wallet', 'Carteira'], servicos: ['tagHeart', 'Serviços'], opcoes: ['menu', 'Opções'] };
+  $('#tabbar').querySelectorAll('.tab').forEach((b) => {
+    const [ic, label] = defs[b.dataset.tab];
+    b.replaceChildren(icon(ic), h('span', null, label));
+    b.addEventListener('click', () => go(b.dataset.href));
+  });
+}
+function luminance(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.substr(i, 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+const contrastWithWhite = (hex) => 1.05 / (luminance(hex) + 0.05);
+function applySettings() {
+  const s = db.settings();
+  const root = document.documentElement.style;
+  root.setProperty('--accent', s.accent);
+  root.setProperty('--on-accent', contrastWithWhite(s.accent) >= 4.5 ? '#FFFFFF' : '#111111');
+  document.title = s.appName;
+  $('meta[name="apple-mobile-web-app-title"]').setAttribute('content', s.appName);
+  // Envia nome e cor para o Service Worker personalizar o manifest.json.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((reg) => reg.active && reg.active.postMessage({ type: 'config', name: s.appName, color: s.accent })).catch(() => {});
+  }
+}
+function logoNode(big) {
+  const s = db.settings();
+  if (s.logo) return h('img', { src: s.logo, alt: 'Logo de ' + s.appName });
+  const ph = h('div', { class: 'logo-ph', role: 'img', 'aria-label': 'Logo não definida' }, icon('wallet'));
+  if (big) { ph.style.width = '120px'; ph.style.height = '120px'; }
+  return ph;
+}
+
+/* ======================================================================
+   Router (SPA por hash)
+   ====================================================================== */
+function parseRoute() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  return { name: parts[0] || '', param: parts[1] ? decodeURIComponent(parts[1]) : '' };
+}
+function go(hash, opts = {}) {
+  if (location.hash === hash) render();
+  else if (opts.replace) location.replace(hash);
+  else location.hash = hash;
+}
+function render() {
+  ui.closeAll();
+  const { name, param } = parseRoute();
+  view.replaceChildren();
+  view.className = '';
+  view.scrollTop = 0;
+  document.body.classList.remove('gate');
+  setHeader('');
+  if (!auth.hasPassword()) return screens.setup();
+  if (!app.unlocked) {
+    if (name === 'faq') return screens.faq();
+    if (name === 'texto') return screens.texto(param);
+    if (name === 'esqueci') return screens.esqueci();
+    return screens.login();
+  }
+  switch (name) {
+    case 'carteira': return param ? screens.walletForm(param) : screens.carteira();
+    case 'servicos': return screens.servicos();
+    case 'servico': return screens.servico(param);
+    case 'opcoes': return screens.opcoes();
+    case 'senha': return screens.senha();
+    case 'biometria': return screens.biometria();
+    case 'faq': return screens.faq();
+    case 'chat': return screens.chat();
+    case 'texto': return screens.texto(param);
+    case 'personalizar': return screens.personalizar();
+    case 'imagens': return screens.imagens();
+    default: return go('#/carteira', { replace: true });
+  }
+}
+function unlock() {
+  app.unlocked = true;
+  const { name } = parseRoute();
+  if (!name || name === 'esqueci' || name === 'login') go('#/carteira'); else render();
+}
+function resetAll() {
+  Object.values(K).forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } });
+  location.replace(location.pathname + location.search);
+}
+
+/* ======================================================================
+   Componentes de tela
+   ====================================================================== */
+function pwField(label, autocomplete, opts = {}) {
+  const id = 'p' + uid();
+  const input = h('input', { id, class: 'input', type: 'password', autocomplete, placeholder: opts.placeholder || '', autocapitalize: 'off', spellcheck: 'false' });
+  const toggle = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Mostrar senha', 'aria-pressed': 'false' }, icon('eye'));
+  toggle.addEventListener('click', () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(show));
+    toggle.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+    toggle.replaceChildren(icon(show ? 'eyeOff' : 'eye'));
+  });
+  const wrap = h('div', { class: 'field' },
+    h('label', { for: id, class: opts.hideLabel ? 'sr-only' : null }, label),
+    h('div', { class: 'pw-wrap' }, input, toggle));
+  return { wrap, input };
+}
+/* Campo de usuário oculto: ajuda gerenciadores de senha e a acessibilidade. */
+const userField = () => h('input', { type: 'text', name: 'username', autocomplete: 'username', value: 'usuario-local', hidden: true, 'aria-hidden': 'true', tabindex: '-1' });
+function listRow({ ic, label, href, onclick }) {
+  const inner = [h('span', { class: 'circle' }, icon(ic)), h('span', { class: 'txt' }, label), h('span', { class: 'chev' }, icon('chevR'))];
+  return h('li', null, href ? h('a', { class: 'lrow', href }, inner) : h('button', { type: 'button', class: 'lrow', onclick }, inner));
+}
+function imageSlot({ label, value, kind, round, onChange }) {
+  let current = value;
+  const input = h('input', { type: 'file', accept: 'image/*', class: 'sr-only', tabindex: '-1', 'aria-label': 'Arquivo: ' + label });
+  const preview = h('button', { type: 'button', class: 'slot-preview' + (round ? ' round' : '') });
+  const pick = h('button', { type: 'button', class: 'btn small outline' });
+  const rm = h('button', { type: 'button', class: 'btn small ghost' }, 'Remover');
+  const paint = () => {
+    preview.replaceChildren(current ? h('img', { src: current, alt: '' }) : icon(round ? 'person' : 'image'));
+    preview.classList.toggle('has', !!current);
+    preview.setAttribute('aria-label', current ? 'Ver ' + label + ' em tela cheia' : 'Enviar ' + label);
+    pick.textContent = current ? 'Trocar' : 'Enviar';
+    rm.hidden = !current;
+  };
+  preview.addEventListener('click', () => (current ? ui.viewer(current, label) : input.click()));
+  pick.addEventListener('click', () => input.click());
+  rm.addEventListener('click', () => { current = null; onChange(null); paint(); });
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { ui.toast('Escolha um arquivo de imagem.'); return; }
+    pick.disabled = true; pick.textContent = 'Processando…';
+    try {
+      current = await compressImage(file, kind);
+      onChange(current);
+    } catch (e) {
+      ui.toast('Não foi possível ler esta imagem. Tente outra foto.');
+    }
+    pick.disabled = false;
+    paint();
+  });
+  paint();
+  return h('div', { class: 'slot', 'data-slot': label }, h('span', { class: 'label' }, label), preview, input, h('div', { class: 'row-actions' }, pick, rm));
+}
+
+/* ======================================================================
+   Telas
+   ====================================================================== */
+const screens = {
+  /* --- Primeira execução --- */
+  setup() {
+    document.body.classList.add('gate');
+    setHeader('Crie sua senha'); setTabs(null);
+    const pw = pwField('Nova senha', 'new-password');
+    const pw2 = pwField('Confirme a nova senha', 'new-password');
+    const err = h('p', { class: 'err', role: 'alert' });
+    const btn = h('button', { type: 'submit', class: 'btn primary', disabled: true }, 'Criar senha');
+    const upd = () => { btn.disabled = !(pw.input.value && pw2.input.value); };
+    pw.input.addEventListener('input', upd); pw2.input.addEventListener('input', upd);
+    const form = h('form', { novalidate: true },
+      h('div', { class: 'gate-logo' }, logoNode(true)),
+      h('h2', { class: 'title' }, 'Crie sua senha'),
+      h('p', { class: 'muted' }, 'Ela protege o acesso a este aparelho. Use pelo menos 4 caracteres.'),
+      userField(), pw.wrap, pw2.wrap, err, btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (pw.input.value.length < 4) { err.textContent = 'A senha precisa ter pelo menos 4 caracteres.'; return pw.input.focus(); }
+      if (pw.input.value !== pw2.input.value) { err.textContent = 'As senhas não conferem. Digite a mesma senha nos dois campos.'; return pw2.input.focus(); }
+      btn.disabled = true;
+      if (await auth.setPassword(pw.input.value)) { ui.toast('Senha criada. Agora entre com ela.'); go('#/login', { replace: true }); }
+      else btn.disabled = false;
+    });
+    view.append(form);
+  },
+
+  /* --- Login --- */
+  login() {
+    document.body.classList.add('gate');
+    setHeader('Entrar'); setTabs(null);
+    const pw = pwField('Senha', 'current-password', { placeholder: 'Senha', hideLabel: true });
+    const err = h('p', { class: 'err', role: 'alert', id: 'loginErr' });
+    const btn = h('button', { type: 'submit', class: 'btn primary', disabled: true }, 'Entrar');
+    pw.input.setAttribute('aria-describedby', 'loginErr');
+    pw.input.addEventListener('input', () => { btn.disabled = !pw.input.value; err.textContent = ''; });
+    const form = h('form', { novalidate: true },
+      h('div', { class: 'gate-logo' }, logoNode(true)),
+      h('h2', { class: 'title' }, 'Acesse a sua conta'),
+      h('p', { class: 'muted' }, 'Insira sua senha para entrar.'),
+      userField(), pw.wrap, err,
+      h('a', { class: 'forgot', href: '#/esqueci' }, 'Esqueci minha senha'),
+      btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!pw.input.value) return;
+      btn.disabled = true;
+      if (await auth.check(pw.input.value)) return unlock();
+      err.textContent = 'Senha incorreta. Confira e tente novamente.';
+      vibrate([60, 40, 60]);
+      pw.input.parentElement.classList.remove('shake'); void pw.input.offsetWidth;
+      pw.input.parentElement.classList.add('shake');
+      pw.input.select();
+      btn.disabled = false;
+    });
+    view.append(form);
+    const a = auth.get();
+    if (a.bio.enabled && window.PublicKeyCredential && window.isSecureContext) {
+      view.append(h('div', { style: 'margin-top:12px' }, h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+        try { if (await bioVerify(a.bio.credId)) unlock(); }
+        catch (e) { err.textContent = 'Biometria não confirmada. Entre com a senha.'; }
+      } }, icon('finger'), 'Entrar com biometria')));
+    }
+    view.append(h('p', { class: 'gate-footer' },
+      h('a', { href: '#/faq' }, 'Ajuda'), ' | ', h('a', { href: '#/texto/privacidade' }, 'Privacidade'), ' | ', h('a', { href: '#/texto/termos' }, 'Termos')));
+  },
+
+  /* --- Esqueci minha senha (sem servidor: só pode apagar e recomeçar) --- */
+  esqueci() {
+    document.body.classList.add('gate');
+    setHeader('Esqueci minha senha', { back: '#/login' }); setTabs(null);
+    view.append(
+      h('h2', { class: 'title' }, 'Não é possível recuperar a senha'),
+      h('p', { class: 'muted' }, 'Este aplicativo não usa servidor: a senha não fica guardada em lugar nenhum, apenas uma impressão digital dela. Para voltar a usar, apague os dados deste aparelho e crie uma nova senha.'),
+      h('p', { class: 'muted' }, 'Se você tiver um backup exportado, poderá importá-lo depois em Opções > Chat de atendimento > Personalizar aplicativo.'),
+      h('button', { type: 'button', class: 'btn danger', onclick: async () => {
+        if (!(await ui.confirm('Apagar todos os dados?', 'Carteiras, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
+        if (!(await ui.confirm('Tem certeza?', 'Esta ação não pode ser desfeita.', 'Apagar tudo', true))) return;
+        resetAll();
+      } }, 'Apagar dados e recomeçar'));
+  },
+
+  /* --- Carteira --- */
+  carteira() {
+    setHeader('Carteira'); setTabs('carteira');
+    const wallets = db.wallets();
+    view.append(h('h2', { class: 'section' }, 'Válidas'));
+    const wrap = h('div');
+    if (!wallets.length) wrap.append(h('p', { class: 'muted' }, 'Nenhuma carteira salva. Adicione a primeira.'));
+    wallets.forEach((w) => {
+      wrap.append(h('button', { type: 'button', class: 'wcard', onclick: () => go('#/carteira/' + w.id), 'aria-label': [w.tipo, w.nome, w.numero].filter(Boolean).join(', ') + '. Abrir carteira' },
+        h('span', { class: 'avatar' }, w.avatar ? h('img', { src: w.avatar, alt: '' }) : null),
+        h('span', { class: 'wlines' }, h('span', { class: 'wl1' }, w.tipo || 'Sem tipo'), h('span', { class: 'wl2' }, w.nome || 'Sem nome'), h('span', { class: 'wl3' }, w.numero || '—')),
+        h('span', { class: 'chev' }, icon('chevR'))));
+    });
+    view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar carteira'));
+  },
+
+  walletForm(id) {
+    const list = db.wallets();
+    const isNew = id === 'nova';
+    const existing = list.find((w) => w.id === id);
+    if (!isNew && !existing) return go('#/carteira', { replace: true });
+    const draft = existing ? { ...existing } : { id: uid(), tipo: '', nome: '', numero: '', front: null, back: null, qr: null, avatar: null };
+    setHeader(isNew ? 'Nova carteira' : 'Editar carteira', { back: '#/carteira' }); setTabs(null);
+    const field = (key, label, extra = {}) => {
+      const fid = 'w_' + key;
+      const input = h('input', { id: fid, type: 'text', maxlength: extra.max || 120, autocomplete: 'off', ...extra.attrs });
+      input.value = draft[key];
+      input.addEventListener('input', () => { draft[key] = input.value; });
+      return h('div', { class: 'field' }, h('label', { for: fid }, label), input);
+    };
+    const err = h('p', { class: 'err', role: 'alert' });
+    const save = () => {
+      draft.tipo = draft.tipo.trim(); draft.nome = draft.nome.trim(); draft.numero = draft.numero.trim();
+      if (!draft.tipo && !draft.nome) { err.textContent = 'Preencha pelo menos o tipo ou o nome.'; return; }
+      const next = db.wallets();
+      const i = next.findIndex((w) => w.id === draft.id);
+      if (i >= 0) next[i] = draft; else next.push(draft);
+      if (store.set(K.wallets, next)) { ui.toast('Carteira salva.'); go('#/carteira', { replace: true }); }
+    };
+    const del = async () => {
+      if (!(await ui.confirm('Excluir carteira?', 'Esta carteira e as imagens dela serão apagadas deste aparelho.', 'Excluir', true))) return;
+      if (store.set(K.wallets, db.wallets().filter((w) => w.id !== draft.id))) { ui.toast('Carteira excluída.'); go('#/carteira', { replace: true }); }
+    };
+    view.append(h('div', { class: 'card' },
+      field('tipo', 'Tipo', { max: 80 }), field('nome', 'Nome', { max: 120 }), field('numero', 'Número', { max: 60 }),
+      h('h3', { class: 'sub' }, 'Imagens'),
+      h('p', { class: 'muted small' }, 'Toque em uma imagem para ver em tela cheia.'),
+      h('div', { class: 'slots' },
+        imageSlot({ label: 'Avatar', value: draft.avatar, kind: 'avatar', round: true, onChange: (v) => { draft.avatar = v; } }),
+        imageSlot({ label: 'QR Code', value: draft.qr, kind: 'doc', onChange: (v) => { draft.qr = v; } }),
+        imageSlot({ label: 'Frente', value: draft.front, kind: 'doc', onChange: (v) => { draft.front = v; } }),
+        imageSlot({ label: 'Verso', value: draft.back, kind: 'doc', onChange: (v) => { draft.back = v; } })),
+      err,
+      h('div', { class: 'stack' },
+        h('button', { type: 'button', class: 'btn primary', onclick: save }, 'Salvar'),
+        h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira', { replace: true }) }, 'Cancelar'),
+        isNew ? null : h('button', { type: 'button', class: 'btn danger-outline', onclick: del }, 'Excluir carteira'))));
+  },
+
+  /* --- Serviços --- */
+  servicos() {
+    setHeader('Serviços'); setTabs('servicos');
+    const ul = h('ul', { class: 'list' });
+    db.services().forEach((s) => {
+      const btn = h('button', { type: 'button', class: 'lrow no-callout', 'data-service': s.id },
+        h('span', { class: 'circle' }, icon('copy')), h('span', { class: 'txt' }, s.label), h('span', { class: 'chev' }, icon('chevR')));
+      bindServiceGestures(btn, { onTap: () => go('#/servico/' + s.id), onEdit: () => editService(s.id) });
+      ul.append(h('li', null, btn));
+    });
+    view.append(ul);
+  },
+  servico(id) {
+    const s = db.services().find((x) => x.id === id);
+    if (!s) return go('#/servicos', { replace: true });
+    setHeader(s.label, { back: '#/servicos' }); setTabs('servicos');
+    view.append(h('div', { class: 'card' },
+      h('h2', { class: 'section' }, s.label),
+      h('p', { class: 'muted' }, 'Este serviço funciona como um atalho pessoal. O conteúdo fica salvo apenas neste aparelho.')));
+  },
+
+  /* --- Opções --- */
+  opcoes() {
+    setHeader('Opções'); setTabs('opcoes');
+    const items = [
+      ['lock', 'Alteração de senha', '#/senha'], ['finger', 'Acesso com biometria', '#/biometria'],
+      ['help', 'Perguntas frequentes', '#/faq'], ['headset', 'Chat de atendimento', null],
+      ['doc', 'Termos e condições de uso', '#/texto/termos'], ['eye', 'Política de privacidade', '#/texto/privacidade']
+    ];
+    // O item do chat abre uma escolha: ir para o chat ou personalizar o aplicativo.
+    const chooseChat = () => {
+      const pick = (href) => () => { close(); go(href); };
+      const close = ui.modal({
+        title: 'Chat de atendimento',
+        body: h('ul', { class: 'list' },
+          listRow({ ic: 'headset', label: 'Ir para o chat', onclick: pick('#/chat') }),
+          listRow({ ic: 'gear', label: 'Personalizar aplicativo', onclick: pick('#/personalizar') })),
+        actions: [{ label: 'Cancelar', kind: 'outline', onClick: () => close() }]
+      });
+    };
+    view.append(h('ul', { class: 'list' }, items.map(([ic, label, href]) => listRow(href ? { ic, label, href } : { ic, label, onclick: chooseChat }))));
+    const credits = db.settings().credits;
+    if (credits) view.append(h('p', { class: 'muted small credits' }, credits));
+  },
+
+  senha() {
+    setHeader('Alteração de senha', { back: '#/opcoes' }); setTabs('opcoes');
+    const cur = pwField('Senha atual', 'current-password');
+    const nw = pwField('Nova senha', 'new-password');
+    const cf = pwField('Confirme a nova senha', 'new-password');
+    const err = h('p', { class: 'err', role: 'alert' });
+    const btn = h('button', { type: 'submit', class: 'btn primary' }, 'Alterar senha');
+    const form = h('form', { class: 'card', novalidate: true }, userField(), cur.wrap, nw.wrap, cf.wrap, err, btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      if (!(await auth.check(cur.input.value))) { err.textContent = 'Senha atual incorreta.'; vibrate(80); return cur.input.focus(); }
+      if (nw.input.value.length < 4) { err.textContent = 'A nova senha precisa ter pelo menos 4 caracteres.'; return nw.input.focus(); }
+      if (nw.input.value !== cf.input.value) { err.textContent = 'A confirmação não confere com a nova senha.'; return cf.input.focus(); }
+      btn.disabled = true;
+      if (await auth.setPassword(nw.input.value)) { ui.toast('Senha alterada.'); go('#/opcoes', { replace: true }); }
+      else btn.disabled = false;
+    });
+    view.append(form);
+  },
+
+  async biometria() {
+    setHeader('Acesso com biometria', { back: '#/opcoes' }); setTabs('opcoes');
+    const a = auth.get();
+    const sw = h('button', { type: 'button', class: 'switch', role: 'switch', id: 'bioSwitch', 'aria-checked': String(a.bio.enabled), 'aria-labelledby': 'bioLbl' });
+    const msg = h('div', { role: 'status', 'aria-live': 'polite' });
+    view.append(h('div', { class: 'card' },
+      h('div', { class: 'switch-row' }, h('span', { id: 'bioLbl', class: 'wl2' }, 'Entrar com digital ou rosto'), sw),
+      h('p', { class: 'muted small', style: 'margin-top:10px' }, 'Usa o leitor do próprio aparelho. A senha continua funcionando.'),
+      msg));
+    const support = await bioSupport();
+    if (!support.ok) {
+      if (a.bio.enabled) auth.setBio({ enabled: false, credId: '' });
+      sw.setAttribute('aria-checked', 'false');
+      sw.setAttribute('aria-disabled', 'true');
+      msg.replaceChildren(h('p', { class: 'notice' }, support.reason));
+    }
+    sw.addEventListener('click', async () => {
+      if (!support.ok) { msg.replaceChildren(h('p', { class: 'notice' }, support.reason)); return; }
+      if (sw.getAttribute('aria-checked') === 'true') {
+        auth.setBio({ enabled: false, credId: '' });
+        sw.setAttribute('aria-checked', 'false');
+        ui.toast('Biometria desativada.');
+        return;
+      }
+      try {
+        const credId = await bioRegister();
+        if (auth.setBio({ enabled: true, credId })) { sw.setAttribute('aria-checked', 'true'); ui.toast('Biometria ativada.'); }
+      } catch (e) {
+        msg.replaceChildren(h('p', { class: 'notice' }, 'Biometria não ativada: a operação foi cancelada ou não é permitida neste aparelho.'));
+      }
+    });
+  },
+
+  /* --- Perguntas frequentes (editável) + anexos --- */
+  faq() {
+    const editable = app.unlocked;
+    setHeader('Perguntas frequentes', { back: editable ? '#/opcoes' : '#/login' }); setTabs(editable ? 'opcoes' : null);
+    if (!editable) document.body.classList.add('gate');
+    const faq = db.faq();
+    const editItem = async (i) => {
+      const cur = i >= 0 ? faq[i] : { q: '', a: '' };
+      const r = await ui.form(i >= 0 ? 'Editar pergunta' : 'Nova pergunta', [
+        { name: 'q', label: 'Pergunta', value: cur.q, max: 300 },
+        { name: 'a', label: 'Resposta', value: cur.a, multiline: true, max: 5000 }]);
+      if (!r || !r.q.trim()) return;
+      const next = db.faq();
+      const item = { q: r.q.trim(), a: r.a.trim() };
+      if (i >= 0) next[i] = item; else next.push(item);
+      if (store.set(K.faq, next)) { ui.toast('Pergunta salva.'); render(); }
+    };
+    if (!faq.length) view.append(h('p', { class: 'muted' }, 'Nenhuma pergunta cadastrada.'));
+    faq.forEach((f, i) => {
+      view.append(h('details', { class: 'faq' }, h('summary', null, f.q),
+        h('div', { class: 'faq-body' }, f.a,
+          editable ? h('div', { class: 'row-actions', style: 'margin-top:10px' },
+            h('button', { type: 'button', class: 'btn small outline', onclick: () => editItem(i) }, 'Editar'),
+            h('button', { type: 'button', class: 'btn small ghost', onclick: async () => {
+              if (!(await ui.confirm('Excluir pergunta?', f.q, 'Excluir', true))) return;
+              const next = db.faq(); next.splice(i, 1);
+              if (store.set(K.faq, next)) render();
+            } }, 'Excluir')) : null)));
+    });
+    if (editable) view.append(h('button', { type: 'button', class: 'btn outline', style: 'margin:6px 0 24px', onclick: () => editItem(-1) }, icon('plus'), 'Adicionar pergunta'));
+
+    view.append(h('h2', { class: 'section', style: 'margin-top:16px' }, 'Arquivos'));
+    const files = db.faqFiles();
+    const ul = h('ul', { class: 'files', id: 'faqFiles' });
+    if (!files.length) view.append(h('p', { class: 'muted' }, editable ? 'Nenhum arquivo anexado. Anexe imagens ou PDF.' : 'Nenhum arquivo anexado.'));
+    files.forEach((f) => {
+      ul.append(h('li', null,
+        h('button', { type: 'button', class: 'fopen', onclick: () => openFile(f), 'aria-label': 'Abrir ' + f.name },
+          h('span', { class: 'circle' }, icon(f.type === 'pdf' ? 'doc' : 'image')),
+          h('span', { style: 'min-width:0' }, h('span', { class: 'fname' }, f.name), h('span', { class: 'fsize' }, (f.type === 'pdf' ? 'PDF' : 'Imagem') + ' · ' + fmtSize(f.size)))),
+        editable ? h('button', { type: 'button', class: 'btn small ghost', 'aria-label': 'Remover ' + f.name, onclick: async () => {
+          if (!(await ui.confirm('Remover arquivo?', f.name, 'Remover', true))) return;
+          if (store.set(K.faqFiles, db.faqFiles().filter((x) => x.id !== f.id))) { ui.toast('Arquivo removido.'); render(); }
+        } }, 'Remover') : null));
+    });
+    view.append(ul);
+    if (editable) {
+      const input = h('input', { type: 'file', id: 'faqFileInput', accept: 'image/*,application/pdf', multiple: true, class: 'sr-only', tabindex: '-1', 'aria-label': 'Escolher arquivos' });
+      const btn = h('button', { type: 'button', class: 'btn outline', onclick: () => input.click() }, 'Anexar arquivo');
+      input.addEventListener('change', async () => {
+        const chosen = [...(input.files || [])];
+        input.value = '';
+        let added = 0;
+        for (const file of chosen) {
+          try {
+            let data;
+            if (file.type === 'application/pdf') {
+              if (file.size > 3 * 1048576) { ui.toast('"' + file.name + '" é grande demais. Use PDFs de até 3 MB.'); continue; }
+              data = await readDataURL(file);
+            } else if (/^image\//.test(file.type)) {
+              data = await compressImage(file, 'doc');
+            } else { ui.toast('"' + file.name + '" não é imagem nem PDF.'); continue; }
+            if (!isFileData(data)) { ui.toast('Não foi possível ler "' + file.name + '".'); continue; }
+            const next = db.faqFiles();
+            next.push({ id: uid(), name: file.name.slice(0, 120), data });
+            if (!store.set(K.faqFiles, next)) break;
+            added++;
+          } catch (e) { ui.toast('Não foi possível ler "' + file.name + '".'); }
+        }
+        if (added) { ui.toast(added === 1 ? 'Arquivo anexado.' : added + ' arquivos anexados.'); render(); }
+      });
+      view.append(input, btn);
+    }
+  },
+
+  /* --- Chat local offline --- */
+  chat() {
+    setTabs('opcoes');
+    const cfgBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Configurar resposta automática', onclick: async () => {
+      const c = db.chat();
+      const r = await ui.form('Resposta automática', [{ name: 'auto', label: 'Mensagem enviada após cada mensagem sua', value: c.auto, multiline: true, max: 1000 }]);
+      if (!r) return;
+      c.auto = r.auto.trim();
+      if (store.set(K.chat, c)) ui.toast('Resposta automática salva.');
+    } }, icon('gear'));
+    setHeader('Chat de atendimento', { back: '#/opcoes', action: cfgBtn });
+    view.className = 'chat';
+    const list = h('div', { class: 'msgs', role: 'log', 'aria-live': 'polite', 'aria-label': 'Mensagens' });
+    const paint = () => {
+      const c = db.chat();
+      list.replaceChildren();
+      if (!c.msgs.length) list.append(h('p', { class: 'muted', style: 'text-align:center;margin-top:24px' }, 'Envie uma mensagem para começar.'));
+      c.msgs.forEach((m) => list.append(h('div', { class: 'msg ' + m.from }, m.text,
+        h('time', null, new Date(m.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })))));
+      list.scrollTop = list.scrollHeight;
+    };
+    const input = h('input', { class: 'input', id: 'chatInput', type: 'text', maxlength: 2000, autocomplete: 'off', placeholder: 'Escreva uma mensagem' });
+    const form = h('form', { class: 'composer' }, h('label', { for: 'chatInput', class: 'sr-only' }, 'Mensagem'), input,
+      h('button', { type: 'submit', class: 'icon-btn', 'aria-label': 'Enviar mensagem' }, icon('send')));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      const c = db.chat();
+      c.msgs.push({ from: 'me', text, t: Date.now() });
+      if (!store.set(K.chat, c)) return;
+      input.value = '';
+      paint();
+      if (c.auto) setTimeout(() => {
+        const c2 = db.chat();
+        c2.msgs.push({ from: 'bot', text: c2.auto || DEF.autoReply, t: Date.now() });
+        c2.msgs = c2.msgs.slice(-200);
+        if (store.set(K.chat, c2) && list.isConnected) paint();
+      }, 700);
+    });
+    view.append(list, form);
+    paint();
+  },
+
+  /* --- Termos / Privacidade (editáveis após o login) --- */
+  texto(key) {
+    if (key !== 'termos' && key !== 'privacidade') return go(app.unlocked ? '#/opcoes' : '#/login', { replace: true });
+    const title = key === 'termos' ? 'Termos e condições de uso' : 'Política de privacidade';
+    const editable = app.unlocked;
+    setHeader(title, { back: editable ? '#/opcoes' : '#/login' }); setTabs(editable ? 'opcoes' : null);
+    if (!editable) document.body.classList.add('gate');
+    const texts = db.texts();
+    view.append(h('article', { class: 'card prose' }, texts[key]));
+    if (editable) view.append(h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+      const r = await ui.form('Editar texto', [{ name: 'text', label: title, value: db.texts()[key], multiline: true, rows: 12, max: 20000 }]);
+      if (!r) return;
+      const t = db.texts(); t[key] = r.text;
+      if (store.set(K.texts, t)) { ui.toast('Texto salvo.'); render(); }
+    } }, 'Editar texto'));
+  },
+
+  /* --- Personalizar aplicativo --- */
+  personalizar() {
+    setHeader('Personalizar aplicativo', { back: '#/opcoes' }); setTabs('opcoes');
+    const s = db.settings();
+    const saveSettings = (patch, okMsg) => {
+      const cur = db.settings();
+      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, ...patch };
+      if (store.set(K.settings, next)) { applySettings(); ui.toast(okMsg); return true; }
+      return false;
+    };
+
+    // 1. Logo
+    const logoInput = h('input', { type: 'file', id: 'logoInput', accept: 'image/png,image/*', class: 'sr-only', tabindex: '-1', 'aria-label': 'Arquivo da logo' });
+    logoInput.addEventListener('change', async () => {
+      const file = logoInput.files && logoInput.files[0];
+      logoInput.value = '';
+      if (!file) return;
+      if (!/^image\//.test(file.type)) return ui.toast('Escolha uma imagem PNG.');
+      try { const logo = await compressImage(file, 'logo'); if (saveSettings({ logo }, 'Logo atualizada.')) render(); }
+      catch (e) { ui.toast('Não foi possível ler esta imagem.'); }
+    });
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Logo'),
+      h('div', { class: 'checker', id: 'logoPreview' }, s.logo ? h('img', { src: s.logo, alt: 'Logo atual' }) : h('span', { class: 'muted' }, 'Nenhuma logo enviada')),
+      h('p', { class: 'muted small' }, 'Use PNG com fundo transparente. A logo aparece na abertura e na tela de entrada.'),
+      logoInput,
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn outline', onclick: () => logoInput.click() }, s.logo ? 'Trocar logo' : 'Enviar logo'),
+        s.logo ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ logo: null }, 'Logo removida.')) render(); } }, 'Remover logo') : null)));
+
+    // 2 e 3. Senha e imagens do documento
+    view.append(h('ul', { class: 'list' },
+      listRow({ ic: 'lock', label: 'Alterar senha de acesso', href: '#/senha' }),
+      listRow({ ic: 'image', label: 'Imagens do documento', href: '#/imagens' })));
+
+    // 4. Aparência
+    const nameIn = h('input', { id: 'appNameIn', type: 'text', maxlength: 40, value: s.appName });
+    const colorIn = h('input', { id: 'accentIn', type: 'color', value: s.accent.toLowerCase() });
+    const warn = h('p', { class: 'small', role: 'status' });
+    const checkColor = () => {
+      warn.textContent = contrastWithWhite(colorIn.value) < 4.5 ? 'Esta cor tem pouco contraste com o fundo branco; textos e links podem ficar difíceis de ler.' : '';
+      warn.className = warn.textContent ? 'notice' : 'small';
+    };
+    colorIn.addEventListener('input', checkColor);
+    checkColor();
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Aparência'),
+      h('div', { class: 'field' }, h('label', { for: 'appNameIn' }, 'Nome do aplicativo'), nameIn),
+      h('div', { class: 'field' }, h('label', { for: 'accentIn' }, 'Cor de destaque'),
+        h('div', { class: 'color-row' }, colorIn,
+          h('button', { type: 'button', class: 'btn small ghost', onclick: () => { colorIn.value = DEF.accent.toLowerCase(); checkColor(); } }, 'Usar cor padrão'))),
+      warn,
+      h('button', { type: 'button', class: 'btn primary', onclick: () => {
+        const appName = nameIn.value.trim().slice(0, 40) || DEF.appName;
+        if (saveSettings({ appName, accent: colorIn.value.toUpperCase() }, 'Aparência salva.')) render();
+      } }, 'Salvar aparência')));
+
+    // Texto de créditos (aparece no fim da tela Opções)
+    const creditsIn = h('textarea', { id: 'creditsIn', rows: 3, maxlength: 300 });
+    creditsIn.value = s.credits;
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Texto de créditos'),
+      h('div', { class: 'field' }, h('label', { for: 'creditsIn' }, 'Aparece no fim da tela Opções. Ex.: "Feito por Maria"'), creditsIn),
+      h('button', { type: 'button', class: 'btn primary', onclick: () => {
+        saveSettings({ credits: creditsIn.value.trim().slice(0, 300) }, creditsIn.value.trim() ? 'Texto salvo.' : 'Texto removido.');
+      } }, 'Salvar texto')));
+
+    // 5. Backup
+    const importIn = h('input', { type: 'file', id: 'importInput', accept: 'application/json,.json', class: 'sr-only', tabindex: '-1', 'aria-label': 'Arquivo de backup' });
+    importIn.addEventListener('change', async () => {
+      const file = importIn.files && importIn.files[0];
+      importIn.value = '';
+      if (file) importBackup(file);
+    });
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Backup'),
+      h('p', { class: 'muted small' }, 'Guarde uma cópia de tudo em um arquivo JSON. O backup inclui imagens e a impressão digital da senha, nunca a senha em texto.'),
+      importIn,
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn outline', onclick: exportBackup }, 'Exportar backup'),
+        h('button', { type: 'button', class: 'btn outline', onclick: () => importIn.click() }, 'Importar backup'))));
+
+    // 6. Apagar tudo
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Apagar dados'),
+      h('p', { class: 'muted small' }, 'Remove carteiras, imagens, textos, mensagens e a senha deste aparelho.'),
+      h('button', { type: 'button', class: 'btn danger', onclick: async () => {
+        if (!(await ui.confirm('Apagar todos os dados?', 'Carteiras, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
+        if (!(await ui.confirm('Tem certeza?', 'Esta ação não pode ser desfeita. Exporte um backup antes se quiser guardar os dados.', 'Apagar tudo', true))) return;
+        resetAll();
+      } }, 'Apagar todos os dados')));
+  },
+
+  imagens() {
+    setHeader('Imagens do documento', { back: '#/personalizar' }); setTabs('opcoes');
+    const wallets = db.wallets();
+    if (!wallets.length) view.append(h('p', { class: 'muted' }, 'Nenhuma carteira salva. Adicione uma na aba Carteira.'));
+    wallets.forEach((w) => {
+      const thumb = (src, label) => h('button', { type: 'button', class: 'thumb', 'aria-label': src ? 'Ver ' + label : label + ': sem imagem', onclick: () => (src ? ui.viewer(src, label) : go('#/carteira/' + w.id)) },
+        src ? h('img', { src, alt: '' }) : [icon('image'), h('span', null, label)]);
+      view.append(h('section', { class: 'card' },
+        h('h3', { class: 'sub' }, [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Carteira'),
+        h('div', { class: 'thumbs' }, thumb(w.front, 'Frente'), thumb(w.back, 'Verso'), thumb(w.qr, 'QR Code')),
+        h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/' + w.id) }, 'Editar imagens')));
+    });
+  }
+};
+
+/* ======================================================================
+   Ações auxiliares
+   ====================================================================== */
+async function editService(id) {
+  const s = db.services().find((x) => x.id === id);
+  if (!s) return;
+  const r = await ui.form('Editar serviço', [{ name: 'label', label: 'Texto do item', value: s.label, max: 60 }]);
+  if (!r || !r.label.trim()) return;
+  const next = db.services().map((x) => (x.id === id ? { ...x, label: r.label.trim() } : x));
+  if (store.set(K.services, next)) { ui.toast('Serviço atualizado.'); render(); }
+}
+
+/* Toque simples abre; clique triplo ou pressão longa (1,2 s) edita. */
+function bindServiceGestures(el, { onTap, onEdit }) {
+  let timer = null, sx = 0, sy = 0, longFired = false, clicks = 0, clickTimer = null;
+  const cancelLong = () => { clearTimeout(timer); timer = null; };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;
+    longFired = false; sx = e.clientX; sy = e.clientY;
+    cancelLong();
+    timer = setTimeout(() => {
+      timer = null; longFired = true; clicks = 0; clearTimeout(clickTimer);
+      vibrate(20);
+      onEdit();
+    }, 1200);
+  });
+  el.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) cancelLong(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => el.addEventListener(t, cancelLong));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.addEventListener('keydown', (e) => { if (e.key === 'F2') { e.preventDefault(); onEdit(); } });
+  el.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (longFired) { longFired = false; return; }
+    clicks++;
+    clearTimeout(clickTimer);
+    if (clicks >= 3) { clicks = 0; onEdit(); return; }
+    clickTimer = setTimeout(() => { const c = clicks; clicks = 0; if (c === 1) onTap(); }, 400);
+  });
+}
+
+function openFile(f) {
+  if (f.type === 'image') return ui.viewer(f.data, f.name);
+  try {
+    const bin = atob(f.data.slice(f.data.indexOf(',') + 1));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = h('a', { href: url, target: '_blank', rel: 'noopener' });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { ui.toast('Não foi possível abrir este PDF.'); }
+}
+
+function exportBackup() {
+  const data = {};
+  Object.entries(K).forEach(([name, key]) => { const v = store.get(key); if (v !== null) data[name] = v; });
+  const payload = { app: 'pwa-carteira', version: 1, exportedAt: new Date().toISOString(), data };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  const a = h('a', { href: url, download: 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  ui.toast('Backup exportado.');
+}
+
+async function importBackup(file) {
+  let payload;
+  try { payload = JSON.parse(await file.text()); } catch (e) { return ui.toast('Arquivo inválido: não é um backup JSON.'); }
+  if (!payload || payload.app !== 'pwa-carteira' || !payload.data || typeof payload.data !== 'object') return ui.toast('Este arquivo não é um backup deste aplicativo.');
+  if (!(await ui.confirm('Importar backup?', 'Os dados atuais deste aparelho serão substituídos pelos do arquivo.', 'Importar'))) return;
+  const old = {};
+  Object.values(K).forEach((k) => { try { old[k] = localStorage.getItem(k); } catch (e) { old[k] = null; } });
+  try {
+    for (const [name, key] of Object.entries(K)) {
+      if (!(name in payload.data)) continue;
+      let v = payload.data[name];
+      if (name === 'auth') {
+        // A credencial biométrica pertence a outro aparelho: desliga.
+        if (!v || typeof v !== 'object' || !/^[0-9a-f]{64}$/.test(v.hash) || typeof v.salt !== 'string') continue;
+        v = { salt: v.salt, hash: v.hash, bio: { enabled: false, credId: '' } };
+      }
+      localStorage.setItem(key, JSON.stringify(v));
+    }
+  } catch (e) {
+    Object.entries(old).forEach(([k, v]) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (x) { /* ignora */ } });
+    return ui.toast('Espaço insuficiente para importar este backup. Seus dados atuais foram mantidos.');
+  }
+  app.unlocked = false;
+  applySettings();
+  ui.toast('Backup importado. Entre novamente.');
+  go('#/login', { replace: true });
+}
+
+/* ======================================================================
+   Inicialização: splash → criação de senha ou login
+   ====================================================================== */
+function boot() {
+  buildTabs();
+  applySettings();
+  const splash = $('#splash');
+  splash.append(logoNode(true));
+  window.addEventListener('hashchange', () => { app.navCount++; render(); });
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => applySettings()).catch(() => {}));
+  }
+  setTimeout(() => {
+    render();
+    splash.classList.add('hide');
+    setTimeout(() => splash.remove(), 300);
+  }, 1700);
+}
+boot();
+</script>
+</body>
+</html>
