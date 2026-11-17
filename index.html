@@ -76,6 +76,13 @@
   .muted { color: var(--muted); }
   .small { font-size: 14px; }
   .credits { text-align: center; white-space: pre-line; margin: 20px 16px 8px; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: #E6E6E6; border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 14px; }
+  .seg-btn { min-height: 44px; border: 0; border-radius: 9px; background: transparent; font-weight: 600; color: var(--muted); font-size: 15px; }
+  .seg-btn[aria-selected="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+  .doc-stage { margin-bottom: 14px; }
+  .doc-img { display: block; width: 100%; padding: 0; border: 0; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .doc-img img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; }
+  .doc-empty { background: var(--surface); border-radius: var(--radius); min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
   .icon-preview { display: flex; justify-content: center; margin: 8px 0 12px; }
   .icon-preview img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
   .sheet .list { margin: 8px 0 12px; }
@@ -245,6 +252,8 @@ const ICONS = {
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
   send: '<path d="M4 12 20 4l-6 16-3-7z"/><path d="m11 13 9-9"/>',
+  share: '<path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M12 15V3"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/>',
+  pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   person: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
 };
 
@@ -391,6 +400,7 @@ const db = {
       accent: /^#[0-9a-fA-F]{6}$/.test(v.accent) ? v.accent : DEF.accent,
       logo: isImg(v.logo),
       credits: str(v.credits, '', 300).trim(),
+      mold: isImg(v.mold),
       icon: (typeof v.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v.icon)) ? v.icon : null
     };
   },
@@ -498,7 +508,7 @@ async function bioVerify(credId) {
    avatar: máx. 512 px, PNG se houver transparência, senão JPEG
    ====================================================================== */
 async function compressImage(file, kind) {
-  const max = kind === 'doc' ? 1024 : 512;
+  const max = kind === 'doc' ? 1024 : kind === 'mold' ? 1400 : 512;
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => {
@@ -514,10 +524,10 @@ async function compressImage(file, kind) {
     const c = document.createElement('canvas');
     c.width = w; c.height = ht;
     const ctx = c.getContext('2d');
-    if (kind === 'doc') {
+    if (kind === 'doc' || kind === 'mold') {
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, ht);
       ctx.drawImage(img, 0, 0, w, ht);
-      return c.toDataURL('image/jpeg', 0.8);
+      return c.toDataURL('image/jpeg', kind === 'mold' ? 0.88 : 0.8);
     }
     ctx.drawImage(img, 0, 0, w, ht);
     if (kind === 'logo') return c.toDataURL('image/png'); // preserva o canal alpha
@@ -551,6 +561,42 @@ const readDataURL = (file) => new Promise((res, rej) => {
   r.onerror = () => rej(r.error);
   r.readAsDataURL(file);
 });
+
+/* Encaminhar: coloca a foto do documento no molde (Personalizar) e abre o compartilhamento. */
+const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('imagem inválida')); i.src = src; });
+async function composeShare(src) {
+  const doc = await loadImg(src);
+  const moldSrc = db.settings().mold;
+  const mold = moldSrc ? await loadImg(moldSrc) : null;
+  const W = mold ? mold.naturalWidth : doc.naturalWidth, H = mold ? mold.naturalHeight : doc.naturalHeight;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  if (mold) {
+    ctx.drawImage(mold, 0, 0, W, H);
+    // foto no meio, um pouco abaixo do centro
+    const s = Math.min((W * 0.8) / doc.naturalWidth, (H * 0.5) / doc.naturalHeight);
+    const dw = doc.naturalWidth * s, dh = doc.naturalHeight * s;
+    ctx.drawImage(doc, (W - dw) / 2, H * 0.56 - dh / 2, dw, dh);
+  } else ctx.drawImage(doc, 0, 0, W, H);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('falha'))), 'image/jpeg', 0.92));
+}
+async function shareDocImage(src, title) {
+  let blob;
+  try { blob = await composeShare(src); } catch (e) { return ui.toast('Não foi possível preparar a imagem.'); }
+  const name = (title.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'documento') + '.jpg';
+  const file = new File([blob], name, { type: 'image/jpeg' });
+  const download = () => {
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    ui.toast('Imagem salva no aparelho.');
+  };
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title }); } catch (e) { if (!e || e.name !== 'AbortError') download(); }
+  } else download();
+}
 
 /* ======================================================================
    UI: toast, modal, confirmação, formulário, visualizador
@@ -746,7 +792,8 @@ function render() {
     return screens.login();
   }
   switch (name) {
-    case 'carteira': return param ? screens.walletForm(param) : screens.carteira();
+    case 'carteira': return !param ? screens.carteira() : param === 'nova' ? screens.walletForm('nova') : screens.walletView(param);
+    case 'editar': return screens.walletForm(param);
     case 'servicos': return screens.servicos();
     case 'servico': return screens.servico(param);
     case 'opcoes': return screens.opcoes();
@@ -931,6 +978,30 @@ const screens = {
     view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar carteira'));
   },
 
+  /* Documento já salvo: só a foto, com abas Frente / Verso / QR Code. */
+  walletView(id) {
+    const w = db.wallets().find((x) => x.id === id);
+    if (!w) return go('#/carteira', { replace: true });
+    if (!(w.front || w.back || w.qr)) return go('#/editar/' + w.id, { replace: true });
+    const tabs = [['front', 'Frente'], ['back', 'Verso'], ['qr', 'QR Code']];
+    let cur = tabs.find(([k]) => w[k])[0];
+    const label = () => tabs.find(([k]) => k === cur)[1];
+    const title = [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Documento';
+    const shareBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Encaminhar foto do documento', onclick: () => { if (w[cur]) shareDocImage(w[cur], title + ' - ' + label()); else ui.toast('Esta aba não tem imagem.'); } }, icon('share'));
+    setHeader(title, { back: '#/carteira', action: shareBtn }); setTabs('carteira');
+    const bar = h('div', { class: 'seg', role: 'tablist', 'aria-label': 'Partes do documento' });
+    const stage = h('div', { class: 'doc-stage' });
+    const paint = () => {
+      bar.replaceChildren(...tabs.map(([k, t]) => h('button', { type: 'button', role: 'tab', id: 'tab_' + k, class: 'seg-btn', 'aria-selected': String(k === cur), onclick: () => { cur = k; paint(); } }, t)));
+      stage.setAttribute('role', 'tabpanel'); stage.setAttribute('aria-labelledby', 'tab_' + cur);
+      stage.replaceChildren(w[cur]
+        ? h('button', { type: 'button', class: 'doc-img', 'aria-label': 'Ver ' + label() + ' em tela cheia', onclick: () => ui.viewer(w[cur], label()) }, h('img', { src: w[cur], alt: label() + ' do documento' }))
+        : h('div', { class: 'doc-empty' }, icon('image'), h('p', { class: 'muted' }, label() + ': sem imagem.'), h('button', { type: 'button', class: 'btn outline small', onclick: () => go('#/editar/' + w.id) }, 'Adicionar imagem')));
+    };
+    paint();
+    view.append(bar, stage, h('button', { type: 'button', class: 'btn ghost', onclick: () => go('#/editar/' + w.id) }, icon('pencil'), 'Editar documento'));
+  },
+
   walletForm(id) {
     const list = db.wallets();
     const isNew = id === 'nova';
@@ -952,7 +1023,7 @@ const screens = {
       const next = db.wallets();
       const i = next.findIndex((w) => w.id === draft.id);
       if (i >= 0) next[i] = draft; else next.push(draft);
-      if (store.set(K.wallets, next)) { ui.toast('Carteira salva.'); go('#/carteira', { replace: true }); }
+      if (store.set(K.wallets, next)) { ui.toast('Carteira salva.'); go((draft.front || draft.back || draft.qr) ? '#/carteira/' + draft.id : '#/carteira', { replace: true }); }
     };
     const del = async () => {
       if (!(await ui.confirm('Excluir carteira?', 'Esta carteira e as imagens dela serão apagadas deste aparelho.', 'Excluir', true))) return;
@@ -970,7 +1041,7 @@ const screens = {
       err,
       h('div', { class: 'stack' },
         h('button', { type: 'button', class: 'btn primary', onclick: save }, 'Salvar'),
-        h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira', { replace: true }) }, 'Cancelar'),
+        h('button', { type: 'button', class: 'btn outline', onclick: () => go(existing && (existing.front || existing.back || existing.qr) ? '#/carteira/' + existing.id : '#/carteira', { replace: true }) }, 'Cancelar'),
         isNew ? null : h('button', { type: 'button', class: 'btn danger-outline', onclick: del }, 'Excluir carteira'))));
   },
 
@@ -1215,7 +1286,7 @@ const screens = {
     const s = db.settings();
     const saveSettings = (patch, okMsg) => {
       const cur = db.settings();
-      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, icon: cur.icon, ...patch };
+      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, icon: cur.icon, mold: cur.mold, ...patch };
       if (store.set(K.settings, next)) { applySettings(); ui.toast(okMsg); return true; }
       return false;
     };
@@ -1257,6 +1328,25 @@ const screens = {
       h('div', { class: 'row-actions' },
         h('button', { type: 'button', class: 'btn outline', onclick: () => iconInput.click() }, s.icon ? 'Trocar ícone' : 'Escolher ícone'),
         s.icon ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ icon: null }, 'Ícone padrão restaurado.')) render(); } }, 'Usar ícone padrão') : null)));
+
+    // Molde do arquivo encaminhado
+    const moldInput = h('input', { type: 'file', id: 'moldInput', accept: 'image/*', class: 'sr-only', tabindex: '-1', 'aria-label': 'Arquivo do molde' });
+    moldInput.addEventListener('change', async () => {
+      const file = moldInput.files && moldInput.files[0];
+      moldInput.value = '';
+      if (!file) return;
+      if (!/^image\//.test(file.type)) return ui.toast('Escolha uma imagem.');
+      try { const mold = await compressImage(file, 'mold'); if (saveSettings({ mold }, 'Molde salvo.')) render(); }
+      catch (e) { ui.toast('Não foi possível ler esta imagem.'); }
+    });
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Molde do arquivo'),
+      h('div', { class: 'checker', id: 'moldPreview' }, s.mold ? h('img', { src: s.mold, alt: 'Molde atual' }) : h('span', { class: 'muted' }, 'Nenhum molde enviado')),
+      h('p', { class: 'muted small' }, 'Ao encaminhar um documento (seta no topo da tela dele), a foto é colocada no meio deste desenho, um pouco para baixo. Sem molde, a foto vai sozinha.'),
+      moldInput,
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn outline', onclick: () => moldInput.click() }, s.mold ? 'Trocar molde' : 'Enviar molde'),
+        s.mold ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ mold: null }, 'Molde removido.')) render(); } }, 'Remover molde') : null)));
 
     // 2 e 3. Senha e imagens do documento
     view.append(h('ul', { class: 'list' },
@@ -1326,12 +1416,12 @@ const screens = {
     const wallets = db.wallets();
     if (!wallets.length) view.append(h('p', { class: 'muted' }, 'Nenhuma carteira salva. Adicione uma na aba Carteira.'));
     wallets.forEach((w) => {
-      const thumb = (src, label) => h('button', { type: 'button', class: 'thumb', 'aria-label': src ? 'Ver ' + label : label + ': sem imagem', onclick: () => (src ? ui.viewer(src, label) : go('#/carteira/' + w.id)) },
+      const thumb = (src, label) => h('button', { type: 'button', class: 'thumb', 'aria-label': src ? 'Ver ' + label : label + ': sem imagem', onclick: () => (src ? ui.viewer(src, label) : go('#/editar/' + w.id)) },
         src ? h('img', { src, alt: '' }) : [icon('image'), h('span', null, label)]);
       view.append(h('section', { class: 'card' },
         h('h3', { class: 'sub' }, [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Carteira'),
         h('div', { class: 'thumbs' }, thumb(w.front, 'Frente'), thumb(w.back, 'Verso'), thumb(w.qr, 'QR Code')),
-        h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/' + w.id) }, 'Editar imagens')));
+        h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/editar/' + w.id) }, 'Editar imagens')));
     });
   }
 };

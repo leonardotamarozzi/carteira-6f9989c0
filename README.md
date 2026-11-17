@@ -35,13 +35,13 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v6` → `v7`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v7` → `v8`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 
 ## Personalização (tudo dentro do app)
 
-Opções → Chat de atendimento → **Personalizar aplicativo**: ícone da tela de início (imagem quadrada, recorte central), logo (PNG transparente, mostrada sobre fundo
+Opções → Chat de atendimento → **Personalizar aplicativo**: molde do arquivo encaminhado (a foto do documento vai no meio dele, um pouco abaixo), ícone da tela de início (imagem quadrada, recorte central), logo (PNG transparente, mostrada sobre fundo
 xadrez), senha, imagens do documento, cor de destaque, nome do app, backup JSON
 (exportar/importar) e apagar tudo (dupla confirmação).
 
@@ -55,6 +55,7 @@ já foi instalado, o nome do ícone só muda ao reinstalar.
 - **Fonte:** fonte do sistema (`system-ui`), já que fontes externas não eram permitidas.
 - **Sessão:** o app pede a senha a cada abertura/recarga (o desbloqueio fica só na memória).
 - **Após criar a senha** o app leva ao login, como no fluxo pedido.
+- **Documento salvo:** ao tocar numa carteira que já tem imagem, abre só a foto, com abas Frente/Verso/QR Code e uma seta no topo para encaminhar (compartilhar do aparelho; sem suporte, baixa o arquivo). Sem imagem ainda, abre o formulário. "Editar documento" volta ao formulário.
 - **Formulário de carteira** em tela cheia (rota `#/carteira/<id>`), para o botão Voltar do celular funcionar.
 - **Primeiro serviço:** "2ª via de". Toque simples abre a tela do serviço; clique triplo ou pressão longa de 1,2 s renomeia (no teclado: F2); a tela não mostra legenda sobre isso. Movimento acima de 10 px cancela a pressão longa.
 - **Termos, Privacidade e Ajuda** abertos pelo rodapé do login ficam somente leitura; edição só depois de entrar.

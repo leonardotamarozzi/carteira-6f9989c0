@@ -1,5 +1,5 @@
 /* Service Worker: cache-first do app shell, com versão e limpeza de caches antigos. */
-const VERSION = 'v6'; // aumente a cada atualização do app para renovar o cache
+const VERSION = 'v7'; // aumente a cada atualização do app para renovar o cache
 const SHELL_CACHE = 'pwc-shell-' + VERSION;
 const CONFIG_CACHE = 'pwc-config'; // guarda nome/cor do app para o manifest personalizado
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
