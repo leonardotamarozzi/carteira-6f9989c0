@@ -136,3 +136,33 @@ test('portão: estados e prazo de 7 dias sem internet', () => {
   assert.equal(L.gateStatus({ token: 't', estado: 'aprovado', verificadoEm: now + dia }, now), 'precisa_conferir', 'relógio voltou: exige conferir');
   assert.equal(L.gateStatus({ token: '', estado: 'aprovado', verificadoEm: now }, now), 'sem_pedido');
 });
+
+test('quadro da foto: cabe inteira, centralizada, sem esticar, com e sem giro', () => {
+  const W = 358, H = Math.round(W / L.FRAME_RATIO); // 123
+  // Paisagem 3:2 sem giro: limitada pela altura.
+  let r = L.fitContain(W, H, 600, 400, 0);
+  assert.ok(Math.abs(r.elW / r.elH - 1.5) < 1e-9, 'proporção preservada');
+  assert.ok(r.elH <= H + 1e-9 && r.elW <= W + 1e-9);
+  // Retrato 300x500 girado 90° (Horizontal): fica deitado e cabe no quadro.
+  r = L.fitContain(W, H, 300, 500, 90);
+  assert.ok(Math.abs(r.elW / r.elH - 0.6) < 1e-9, 'o elemento mantém a proporção original');
+  assert.ok(r.elH <= W + 1e-9 && r.elW <= H + 1e-9, 'depois do giro, a altura visível é elW');
+  assert.ok(r.elW <= H + 1e-9);
+  // Vertical (sem giro): retrato fica em pé dentro do quadro.
+  r = L.fitContain(W, H, 300, 500, 0);
+  assert.ok(Math.abs(r.elH - H) < 1e-9);
+  assert.deepEqual(L.fitContain(0, H, 1, 1, 0), { elW: 0, elH: 0 });
+});
+
+test('orientação padrão: só "v" vira Vertical; o resto é Horizontal', () => {
+  assert.equal(L.normOrient('v'), 'v');
+  assert.equal(L.normOrient('h'), 'h');
+  assert.equal(L.normOrient(undefined), 'h');
+  assert.equal(L.normOrient('lixo'), 'h');
+});
+
+test('legenda: dd/mm/aaaa - hh:mm, sem palavras de validação', () => {
+  assert.equal(L.formatViewedAt(new Date(2026, 10, 17, 19, 5)), '17/11/2026 - 19:05');
+  assert.equal(L.formatViewedAt(new Date(2026, 0, 3, 0, 9)), '03/01/2026 - 00:09');
+  assert.ok(!/atualiza|v[aá]lid/i.test('Visualizado em ' + L.formatViewedAt(new Date())));
+});

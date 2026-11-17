@@ -95,8 +95,14 @@
   .pdf-page { display: block; background: #fff; }
   .pdf-page + .pdf-page { border-top: 1px solid var(--line); }
   .pdf-msg { padding: 40px 16px; text-align: center; }
-  .doc-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
-  .doc-actions .btn { min-height: 46px; font-size: 15px; padding: 0 10px; }
+  .hdr-actions { display: inline-flex; align-items: center; justify-content: flex-end; }
+  #hdrRight { justify-self: end; display: inline-flex; }
+  .top-inner { grid-template-columns: 96px 1fr 96px; }
+  .rbox { background: var(--surface); }
+  .doc-caption { margin: 8px 2px 0; font-size: 12px; color: var(--muted); text-align: center; }
+  .qr-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; text-align: left; background: #E8F1FB; border: 1.5px solid #1F5FA8; border-radius: 12px; color: #12355E; font-size: 13px; line-height: 1.35; }
+  .qr-tip .ico { width: 26px; height: 26px; color: #1F5FA8; }
+  .qr-tip span.linhas { display: flex; flex-direction: column; }
   /* QR Code anexado: exibido como enviado; o tempo só oculta por privacidade. */
   .qr-wrap { background: var(--surface); border-radius: var(--radius); padding: 18px 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
   .qr-frame { position: relative; display: block; }
@@ -109,6 +115,9 @@
   .qr-note { margin: 0; }
   .wthumb { width: 56px; height: 56px; border-radius: 10px; background: #F0F0F0; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
   .wthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .wthumb-round { border-radius: 50%; }
+  .profile-slot { display: flex; justify-content: center; margin-bottom: 16px; }
+  .profile-slot .slot { width: 180px; align-items: center; }
   .pdf-chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .icon-preview { display: flex; justify-content: center; margin: 8px 0 12px; }
   .icon-preview img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
@@ -286,7 +295,11 @@ const ICONS = {
   send: '<path d="M4 12 20 4l-6 16-3-7z"/><path d="m11 13 9-9"/>',
   share: '<path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M12 15V3"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/>',
   pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
-  person: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+  person: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
+  rotate: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1V16h5v-.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z"/>'
 };
 
 /* ======================================================================
@@ -433,6 +446,7 @@ const db = {
       logo: isImg(v.logo),
       credits: str(v.credits, '', 300).trim(),
       mold: isImg(v.mold),
+      orient: PWC.normOrient(v.orient),
       icon: (typeof v.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v.icon)) ? v.icon : null
     };
   },
@@ -1190,11 +1204,12 @@ function docPanel(doc, key, label) {
       if (!box.isConnected) return;
       const W = stage.clientWidth, iw = img.naturalWidth, ih = img.naturalHeight;
       if (!W || !iw || !ih) return;
+      const H = W / PWC.FRAME_RATIO; // quadro com a proporção do cartão de referência
       const r = PWC.effectiveRotation(doc.orient, iw, ih, doc.rot);
-      const f = PWC.fitBox(W, iw, ih, r);
+      const f = PWC.fitContain(W, H, iw, ih, r);
       img.style.width = f.elW + 'px'; img.style.height = f.elH + 'px';
       img.style.transform = 'translate(-50%, -50%) rotate(' + r + 'deg)';
-      box.style.height = f.boxH + 'px';
+      box.style.height = H + 'px';
       stage.dataset.rotation = r;
     };
     img.addEventListener('load', () => requestAnimationFrame(layout));
@@ -1268,7 +1283,8 @@ function qrPanel(blob) {
   again.addEventListener('click', () => { started = Date.now(); tick(); });
   tick();
   return h('div', { class: 'qr-wrap' }, frame, bar, time,
-    h('p', { class: 'muted small qr-note' }, 'O QR Code é a imagem que você anexou. O tempo serve apenas para ocultá-lo por privacidade.'));
+    h('div', { class: 'qr-tip', role: 'note' }, icon('bulb'),
+      h('span', { class: 'linhas' }, h('span', null, 'O QR Code é a imagem que você anexou.'), h('span', null, 'O tempo serve apenas para ocultá-lo por privacidade.'))));
 }
 
 /* ======================================================================
@@ -1441,10 +1457,10 @@ const screens = {
     if (!list.length) wrap.append(h('p', { class: 'muted' }, 'Nenhum documento salvo. Adicione o primeiro.'));
     list.forEach((w) => {
       const name = w.nome || w.tipo || 'Sem nome';
-      const thumbSrc = w.front && !isPdf(w.front) ? srcOf(w.front) : w.avatar;
+      const thumbSrc = w.avatar; // foto de perfil, nunca o arquivo do documento
       const date = 'Incluído em ' + new Date(w.createdAt).toLocaleDateString('pt-BR');
       wrap.append(h('button', { type: 'button', class: 'wcard', 'data-doc': w.id, onclick: () => go('#/carteira/' + w.id), 'aria-label': name + ', ' + date + '. Abrir documento' },
-        h('span', { class: 'wthumb' }, thumbSrc ? h('img', { src: thumbSrc, alt: '' }) : icon(isPdf(w.front) ? 'doc' : 'image')),
+        h('span', { class: 'wthumb wthumb-round' }, thumbSrc ? h('img', { src: thumbSrc, alt: '' }) : icon('person')),
         h('span', { class: 'wlines' },
           w.tipo && w.nome ? h('span', { class: 'wl1' }, w.tipo) : null,
           h('span', { class: 'wl2' }, name),
@@ -1454,7 +1470,8 @@ const screens = {
     view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar documento'));
   },
 
-  /* Documento salvo: abas Frente / Verso (o documento) e QR Code (só se anexado). */
+  /* Documento salvo: abas Frente / Verso (o documento) e QR Code (só se anexado).
+     Abaixo da foto, só a legenda pequena; as ações ficam no menu ⋯ do cabeçalho. */
   walletView(id) {
     const w = docs.get(id);
     if (!w) return go('#/carteira', { replace: true });
@@ -1463,54 +1480,61 @@ const screens = {
     let cur = w.front ? 'front' : w.back ? 'back' : 'qr';
     const label = () => tabs().find(([k]) => k === cur)[1];
     const title = () => w.nome || w.tipo || 'Documento';
+    const vistoEm = 'Visualizado em ' + PWC.formatViewedAt(new Date()); // momento em que a tela foi aberta
     const canShare = () => cur !== 'qr' && w[cur] && !isPdf(w[cur]);
     const shareBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Encaminhar foto do documento', onclick: () => { if (canShare()) shareDocImage(srcOf(w[cur]), title() + ' - ' + label()); } }, icon('share'));
-    const bar = h('div', { class: 'seg', role: 'tablist', 'aria-label': 'Partes do documento' });
-    const stage = h('div', { class: 'doc-stage' });
-    const rotateBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
-      w.rot = PWC.normRot(w.rot + 90);
-      await docs.save(w);
-      paint();
-    } }, 'Girar');
-    const renameBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+    const girar = async () => { w.rot = PWC.normRot(w.rot + 90); if (await docs.save(w)) paint(); };
+    const editarNome = async () => {
       const r = await ui.form('Editar nome', [{ name: 'nome', label: 'Nome do documento', value: w.nome || w.tipo, max: 120 }]);
       if (!r || !r.nome.trim()) return;
       w.nome = r.nome.trim();
-      if (await docs.save(w)) { ui.toast('Nome salvo.'); setHeader(title(), { back: '#/carteira', action: shareBtn }); }
-    } }, 'Editar nome');
-    const swapBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+      if (await docs.save(w)) { ui.toast('Nome salvo.'); cabecalho(); }
+    };
+    const trocar = async () => {
       const f = await pickFile(cur === 'qr' ? 'qr' : 'doc');
       if (!f) return;
       w[cur] = f;
       if (await docs.save(w)) { ui.toast('Arquivo trocado.'); paint(); }
-    } }, 'Trocar arquivo');
-    const delBtn = h('button', { type: 'button', class: 'btn danger-outline', onclick: async () => {
+    };
+    const excluir = async () => {
       if (!(await ui.confirm('Excluir documento?', 'O documento e os arquivos dele serão apagados deste aparelho.', 'Excluir', true))) return;
       if (await docs.remove(w.id)) { ui.toast('Documento excluído.'); go('#/carteira', { replace: true }); }
-    } }, 'Excluir');
+    };
+    const menu = () => {
+      const fazer = (fn) => () => { close(); fn(); };
+      const itens = [];
+      if (cur !== 'qr' && w[cur]) itens.push(listRow({ ic: 'rotate', label: 'Girar', onclick: fazer(girar) }));
+      itens.push(listRow({ ic: 'pencil', label: 'Editar nome', onclick: fazer(editarNome) }));
+      itens.push(listRow({ ic: 'image', label: w[cur] ? 'Trocar arquivo' : 'Adicionar arquivo', onclick: fazer(trocar) }));
+      itens.push(listRow({ ic: 'doc', label: 'Editar documento', onclick: fazer(() => go('#/editar/' + w.id)) }));
+      itens.push(listRow({ ic: 'trash', label: 'Excluir', onclick: fazer(excluir) }));
+      const close = ui.modal({ title: title(), body: h('ul', { class: 'list', id: 'docMenu' }, itens), actions: [{ label: 'Cancelar', kind: 'outline', onClick: () => close() }] });
+    };
+    const moreBtn = h('button', { type: 'button', class: 'icon-btn', id: 'docMore', 'aria-label': 'Mais ações do documento', 'aria-haspopup': 'dialog', onclick: menu }, icon('more'));
+    const cabecalho = () => setHeader(title(), { back: '#/carteira', action: h('span', { class: 'hdr-actions' }, shareBtn, moreBtn) });
+    const bar = h('div', { class: 'seg', role: 'tablist', 'aria-label': 'Partes do documento' });
+    const stage = h('div', { class: 'doc-stage' });
     const paint = () => {
       const t = tabs();
       bar.style.gridTemplateColumns = 'repeat(' + t.length + ', 1fr)';
       bar.replaceChildren(...t.map(([k, txt]) => h('button', { type: 'button', role: 'tab', id: 'tab_' + k, class: 'seg-btn', 'aria-selected': String(k === cur), onclick: () => { cur = k; paint(); } }, txt)));
       stage.setAttribute('role', 'tabpanel'); stage.setAttribute('aria-labelledby', 'tab_' + cur);
       shareBtn.hidden = !canShare();
-      rotateBtn.hidden = cur === 'qr' || !w[cur];
-      swapBtn.textContent = w[cur] ? 'Trocar arquivo' : 'Adicionar arquivo';
       if (cur === 'qr') stage.replaceChildren(qrPanel(w.qr));
-      else if (w[cur]) stage.replaceChildren(docPanel(w, cur, label()));
-      else stage.replaceChildren(h('div', { class: 'doc-empty' }, icon('image'), h('p', { class: 'muted' }, label() + ': sem arquivo.')));
+      else stage.replaceChildren(
+        w[cur] ? docPanel(w, cur, label()) : h('div', { class: 'doc-empty', role: 'img', 'aria-label': label() + ' sem arquivo' }, icon('image')),
+        h('p', { class: 'doc-caption' }, vistoEm));
     };
-    setHeader(title(), { back: '#/carteira', action: shareBtn }); setTabs('carteira');
+    cabecalho(); setTabs('carteira');
     paint();
-    view.append(bar, stage, h('div', { class: 'doc-actions' }, rotateBtn, renameBtn, swapBtn, delBtn),
-      h('button', { type: 'button', class: 'btn ghost', onclick: () => go('#/editar/' + w.id) }, icon('pencil'), 'Editar documento'));
+    view.append(bar, stage);
   },
 
   walletForm(id) {
     const isNew = id === 'nova';
     const existing = docs.get(id);
     if (!isNew && !existing) return go('#/carteira', { replace: true });
-    const draft = existing ? { ...existing } : { id: uid(), tipo: '', nome: '', numero: '', front: null, back: null, qr: null, avatar: null, createdAt: Date.now(), orient: 'h', rot: 0 };
+    const draft = existing ? { ...existing } : { id: uid(), tipo: '', nome: '', numero: '', front: null, back: null, qr: null, avatar: null, createdAt: Date.now(), orient: db.settings().orient, rot: 0 };
     setHeader(isNew ? 'Novo documento' : 'Editar documento', { back: '#/carteira' }); setTabs(null);
     const field = (key, label, extra = {}) => {
       const fid = 'w_' + key;
@@ -1539,13 +1563,15 @@ const screens = {
     view.append(h('div', { class: 'card' },
       field('nome', 'Nome', { max: 120 }), field('tipo', 'Tipo (opcional)', { max: 80 }), field('numero', 'Número (opcional)', { max: 60 }),
       h('span', { class: 'label' }, 'Orientação de leitura'), orientSeg,
+      h('h3', { class: 'sub' }, 'Foto de perfil'),
+      h('p', { class: 'muted small' }, 'Aparece no cartão da lista. Só imagem.'),
+      h('div', { class: 'profile-slot' }, imageSlot({ label: 'Foto de perfil', value: draft.avatar, kind: 'avatar', round: true, onChange: (v) => { draft.avatar = v; } })),
       h('h3', { class: 'sub' }, 'Arquivos'),
       h('p', { class: 'muted small' }, 'Imagem JPG, PNG, WebP ou PDF, até 15 MB. O arquivo é guardado como está, sem alteração.'),
       h('div', { class: 'slots' },
         fileSlot({ label: 'Frente', value: draft.front, kind: 'doc', onChange: (v) => { draft.front = v; } }),
         fileSlot({ label: 'Verso', value: draft.back, kind: 'doc', onChange: (v) => { draft.back = v; } }),
-        fileSlot({ label: 'QR Code', value: draft.qr, kind: 'qr', onChange: (v) => { draft.qr = v; } }),
-        imageSlot({ label: 'Avatar', value: draft.avatar, kind: 'avatar', round: true, onChange: (v) => { draft.avatar = v; } })),
+        fileSlot({ label: 'QR Code', value: draft.qr, kind: 'qr', onChange: (v) => { draft.qr = v; } })),
       err,
       h('div', { class: 'stack' },
         saveBtn,
@@ -1805,7 +1831,7 @@ const screens = {
     const s = db.settings();
     const saveSettings = (patch, okMsg) => {
       const cur = db.settings();
-      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, icon: cur.icon, mold: cur.mold, ...patch };
+      const next = { appName: cur.appName, accent: cur.accent, logo: cur.logo, credits: cur.credits, icon: cur.icon, mold: cur.mold, orient: cur.orient, ...patch };
       if (store.set(K.settings, next)) { applySettings(); ui.toast(okMsg); return true; }
       return false;
     };
@@ -1866,6 +1892,15 @@ const screens = {
       h('div', { class: 'row-actions' },
         h('button', { type: 'button', class: 'btn outline', onclick: () => moldInput.click() }, s.mold ? 'Trocar molde' : 'Enviar molde'),
         s.mold ? h('button', { type: 'button', class: 'btn ghost', onclick: () => { if (saveSettings({ mold: null }, 'Molde removido.')) render(); } }, 'Remover molde') : null)));
+
+    // Orientação padrão dos documentos (usada ao anexar; pode trocar por documento)
+    const orientPadrao = h('div', { class: 'seg', role: 'group', 'aria-label': 'Orientação padrão dos documentos', id: 'orientPadrao', style: 'grid-template-columns:1fr 1fr' },
+      [['h', 'Horizontal'], ['v', 'Vertical']].map(([k, t]) => h('button', { type: 'button', class: 'seg-btn', 'data-orient': k, 'aria-pressed': String(s.orient === k),
+        onclick: () => { if (saveSettings({ orient: k }, 'Orientação padrão: ' + t + '.')) render(); } }, t)));
+    view.append(h('section', { class: 'card' },
+      h('h2', { class: 'section' }, 'Orientação padrão dos documentos'),
+      h('p', { class: 'muted small' }, 'Já vem marcada ao anexar um documento. Horizontal deita a foto em pé girando só na tela; o arquivo não muda.'),
+      orientPadrao));
 
     // 2 e 3. Senha e imagens do documento
     view.append(h('ul', { class: 'list' },

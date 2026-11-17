@@ -110,6 +110,24 @@
     return doc;
   }
 
+  /* Quadro da foto do documento: mesma proporção do cartão de referência (largura : altura). */
+  const FRAME_RATIO = 2.9;
+  /* Cabe a imagem inteira (contain) num quadro W x H, depois do giro. Só exibição. */
+  function fitContain(W, H, w, h, rotation) {
+    if (!(W > 0 && H > 0 && w > 0 && h > 0)) return { elW: 0, elH: 0 };
+    const sideways = normRot(rotation) % 180 !== 0;
+    const vw = sideways ? h : w, vh = sideways ? w : h; // tamanho visível depois do giro
+    const s = Math.min(W / vw, H / vh);
+    return { elW: w * s, elH: h * s };
+  }
+  /* Orientação padrão: qualquer valor que não seja 'v' vira 'h' (Horizontal). */
+  function normOrient(v) { return v === 'v' ? 'v' : 'h'; }
+  /* "dd/mm/aaaa - hh:mm" no fuso do aparelho. */
+  function formatViewedAt(d) {
+    const p = (n) => String(n).padStart(2, '0');
+    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' - ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
   /* Portão de acesso (aprovação no servidor). */
   const OFFLINE_DAYS = 7; // sem internet, o acesso aprovado vale por até 7 dias desde a última conferência
   const OFFLINE_MS = OFFLINE_DAYS * 24 * 60 * 60 * 1000;
@@ -138,7 +156,8 @@
     MAX_FILE, DOC_TYPES, QR_TYPES, QR_SECONDS, FILE_SLOTS,
     checkFile, autoRotation, normRot, effectiveRotation, fitBox,
     qrState, fmtTimer, bytesToB64, b64ToBytes, dataUrlToBytes, sha256Hex, encodeDoc, decodeDoc,
-    OFFLINE_DAYS, OFFLINE_MS, ACCESS_STATES, cleanName, nameKey, nameError, gateStatus
+    OFFLINE_DAYS, OFFLINE_MS, ACCESS_STATES, cleanName, nameKey, nameError, gateStatus,
+    FRAME_RATIO, fitContain, normOrient, formatViewedAt
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PWC = api;
