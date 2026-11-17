@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF">
-<meta name="description" content="Carteira de documentos offline e personalizável.">
+<meta name="description" content="Organizador de documentos pessoais, offline.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Minha Carteira">
+<meta name="apple-mobile-web-app-title" content="Meus Documentos">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Minha Carteira</title>
+<title>Meus Documentos</title>
 <style>
   :root {
     --accent: #0B3A5C;
@@ -55,6 +55,7 @@
   .icon-btn:active { background: rgba(0,0,0,.06); }
   #view { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 16px 28px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
   #view > * { max-width: 560px; margin-left: auto; margin-right: auto; }
+  #view > .btn { display: flex; }
   body.gate #view { background: var(--surface); }
   .tabs { flex: none; background: var(--surface); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); padding-bottom: env(safe-area-inset-bottom); }
   .tabs[hidden] { display: none; }
@@ -83,6 +84,32 @@
   .doc-img { display: block; width: 100%; padding: 0; border: 0; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
   .doc-img img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; }
   .doc-empty { background: var(--surface); border-radius: var(--radius); min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
+  [hidden] { display: none !important; }
+  .seg-btn[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+  /* Visualização do documento: giro e zoom só na tela, o arquivo não muda. */
+  .zstage { position: relative; overflow: hidden; background: var(--surface); border-radius: var(--radius); box-shadow: 0 1px 4px rgba(0,0,0,.15); touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+  .zstage.zoomed { touch-action: none; cursor: grab; }
+  .zcontent { transform-origin: 0 0; }
+  .rbox { position: relative; width: 100%; overflow: hidden; }
+  .rimg { position: absolute; left: 50%; top: 50%; max-width: none; display: block; -webkit-user-drag: none; }
+  .pdf-page { display: block; background: #fff; }
+  .pdf-page + .pdf-page { border-top: 1px solid var(--line); }
+  .pdf-msg { padding: 40px 16px; text-align: center; }
+  .doc-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+  .doc-actions .btn { min-height: 46px; font-size: 15px; padding: 0 10px; }
+  /* QR Code anexado: exibido como enviado; o tempo só oculta por privacidade. */
+  .qr-wrap { background: var(--surface); border-radius: var(--radius); padding: 18px 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .qr-frame { position: relative; display: block; }
+  .qr-frame img { display: block; max-width: min(100%, 320px); height: auto; margin: 0 auto; }
+  .qr-frame.blurred img { filter: blur(18px); }
+  .qr-again { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: auto; max-width: 100%; padding: 0 22px; }
+  .qr-bar { height: 4px; background: #E3E3E3; border-radius: 2px; overflow: hidden; margin: 16px 0 8px; }
+  .qr-fill { height: 100%; background: var(--accent); }
+  .qr-time { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0 0 8px; }
+  .qr-note { margin: 0; }
+  .wthumb { width: 56px; height: 56px; border-radius: 10px; background: #F0F0F0; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .wthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .pdf-chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .icon-preview { display: flex; justify-content: center; margin: 8px 0 12px; }
   .icon-preview img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
   .sheet .list { margin: 8px 0 12px; }
@@ -124,7 +151,7 @@
   .gate-footer { text-align: center; margin-top: 28px; color: var(--muted); }
   .gate-footer a { color: var(--accent); font-weight: 700; text-decoration: none; display: inline-block; padding: 12px 6px; }
 
-  /* ---------- Carteira ---------- */
+  /* ---------- Lista de documentos ---------- */
   .wcard { width: 100%; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 0; border-radius: var(--radius); padding: 14px; margin-bottom: 12px; text-align: left; min-height: 80px; }
   .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--circle); overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -227,6 +254,7 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript>Ative o JavaScript para usar este aplicativo.</noscript>
 
+<script src="lib.js"></script>
 <script>
 'use strict';
 
@@ -356,7 +384,7 @@ const K = {
   faq: 'pwc.faq', faqFiles: 'pwc.faqFiles', chat: 'pwc.chat', texts: 'pwc.texts'
 };
 const DEF = {
-  appName: 'Minha Carteira',
+  appName: 'Meus Documentos',
   accent: '#0B3A5C',
   wallets: () => [{ id: 'exemplo', tipo: 'Documento de exemplo', nome: 'Seu nome aqui', numero: 'Nº 0000000', front: null, back: null, qr: null, avatar: null }],
   services: () => [{ id: 's1', label: '2ª via de' }],
@@ -404,14 +432,8 @@ const db = {
       icon: (typeof v.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v.icon)) ? v.icon : null
     };
   },
-  wallets() {
-    const v = store.get(K.wallets);
-    if (!Array.isArray(v)) return DEF.wallets();
-    return v.filter((o) => o && typeof o === 'object').map((o, i) => ({
-      id: safeId(o.id, 'w' + i), tipo: str(o.tipo, '', 80), nome: str(o.nome, '', 120), numero: str(o.numero, '', 60),
-      front: isImg(o.front), back: isImg(o.back), qr: isImg(o.qr), avatar: isImg(o.avatar)
-    }));
-  },
+  /* Documentos: ficam no IndexedDB (arquivo original); aqui uma cópia rasa da lista em memória. */
+  wallets() { return docs.list.map((d) => ({ ...d })); },
   services() {
     const v = store.get(K.services);
     if (!Array.isArray(v) || !v.length) return DEF.services();
@@ -446,6 +468,135 @@ const db = {
 };
 
 /* ======================================================================
+   Documentos no IndexedDB: cada arquivo é guardado como o Blob original,
+   byte a byte. A lista inteira fica em memória para leitura síncrona.
+   ====================================================================== */
+const MIGRATED_KEY = 'pwc.idbMigrated';
+const isBlobOf = (v, types) => (typeof Blob !== 'undefined' && v instanceof Blob && types.includes(v.type)) ? v : null;
+const isPdf = (b) => !!b && b.type === 'application/pdf';
+function normalizeDoc(o, i) {
+  return {
+    id: safeId(o.id, 'w' + i + uid()), tipo: str(o.tipo, '', 80), nome: str(o.nome, '', 120), numero: str(o.numero, '', 60),
+    avatar: isImg(o.avatar),
+    front: isBlobOf(o.front, PWC.DOC_TYPES), back: isBlobOf(o.back, PWC.DOC_TYPES), qr: isBlobOf(o.qr, PWC.QR_TYPES),
+    createdAt: Number.isFinite(o.createdAt) ? o.createdAt : Date.now(),
+    orient: o.orient === 'v' ? 'v' : 'h', rot: PWC.normRot(o.rot)
+  };
+}
+/* Formato antigo (localStorage, imagens em data URL) -> documento com Blobs. */
+function legacyToDoc(o, i, now) {
+  const blob = (d) => { const r = PWC.dataUrlToBytes(isImg(d)); return r ? new Blob([r.bytes], { type: r.type }) : null; };
+  return normalizeDoc({ ...o, front: blob(o.front), back: blob(o.back), qr: blob(o.qr), createdAt: now + i, orient: 'v', rot: 0 }, i);
+}
+const idb = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('pwc', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('docs', { keyPath: 'id' });
+      r.onsuccess = () => { this.db = r.result; res(r.result); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(mode, fn) {
+    return new Promise((res, rej) => {
+      const t = this.db.transaction('docs', mode);
+      const req = fn(t.objectStore('docs'));
+      t.oncomplete = () => res(req ? req.result : undefined);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error || new Error('transação cancelada'));
+    });
+  },
+  getAll() { return this.tx('readonly', (st) => st.getAll()); },
+  put(doc) { return this.tx('readwrite', (st) => st.put(doc)); },
+  del(id) { return this.tx('readwrite', (st) => st.delete(id)); },
+  replaceAll(list) { return this.tx('readwrite', (st) => { st.clear(); list.forEach((d) => st.put(d)); return null; }); }
+};
+const docs = {
+  list: [],
+  ready: false,
+  async init() {
+    try {
+      await idb.open();
+      let migrated = false;
+      try { migrated = localStorage.getItem(MIGRATED_KEY) === '1'; } catch (e) { /* sem localStorage */ }
+      if (!migrated) {
+        const legacy = store.get(K.wallets);
+        const now = Date.now();
+        const list = (Array.isArray(legacy) ? legacy : DEF.wallets()).filter((o) => o && typeof o === 'object').map((o, i) => legacyToDoc(o, i, now));
+        const existing = await idb.getAll();
+        const have = new Set(existing.map((d) => d.id));
+        for (const d of list) if (!have.has(d.id)) await idb.put(d);
+        // Só apaga a cópia antiga depois de conferir que tudo está no IndexedDB.
+        const after = new Set((await idb.getAll()).map((d) => d.id));
+        if (list.every((d) => after.has(d.id))) {
+          try { localStorage.setItem(MIGRATED_KEY, '1'); localStorage.removeItem(K.wallets); } catch (e) { /* tenta de novo na próxima abertura */ }
+        }
+      }
+      this.list = (await idb.getAll()).map(normalizeDoc).sort((a, b) => a.createdAt - b.createdAt);
+      this.ready = true;
+    } catch (e) {
+      // IndexedDB indisponível: mostra os dados antigos sem poder salvar.
+      const legacy = store.get(K.wallets);
+      this.list = (Array.isArray(legacy) ? legacy : []).map((o, i) => legacyToDoc(o, i, Date.now()));
+      setTimeout(() => ui.toast('Este navegador não permite guardar arquivos. Os documentos não poderão ser salvos.'), 2000);
+    }
+  },
+  get(id) { return this.list.find((d) => d.id === id) || null; },
+  async save(doc) {
+    const d = normalizeDoc(doc, 0);
+    try { await idb.put(d); }
+    catch (e) {
+      ui.toast(e && e.name === 'QuotaExceededError' ? 'Espaço cheio: não foi possível salvar. Nada foi perdido.' : 'Não foi possível salvar o documento. Nada foi perdido.');
+      return false;
+    }
+    const i = this.list.findIndex((x) => x.id === d.id);
+    if (i >= 0) this.list[i] = d; else this.list.push(d);
+    return true;
+  },
+  async remove(id) {
+    try { await idb.del(id); } catch (e) { ui.toast('Não foi possível excluir. Tente de novo.'); return false; }
+    this.list = this.list.filter((d) => d.id !== id);
+    return true;
+  },
+  async replaceAll(list) {
+    const clean = list.map(normalizeDoc);
+    await idb.replaceAll(clean);
+    this.list = clean.sort((a, b) => a.createdAt - b.createdAt);
+  }
+};
+/* URL de exibição para um Blob guardado (o mesmo Blob, sem cópia nem conversão). */
+const blobUrls = new WeakMap();
+function srcOf(b) {
+  if (!b) return null;
+  if (typeof b === 'string') return b;
+  let u = blobUrls.get(b);
+  if (!u) { u = URL.createObjectURL(b); blobUrls.set(b, u); }
+  return u;
+}
+function openBlob(b) {
+  const a = h('a', { href: srcOf(b), target: '_blank', rel: 'noopener' });
+  document.body.append(a); a.click(); a.remove();
+}
+/* Escolher arquivo (original, sem compressão), já validado. */
+function pickFile(kind) {
+  return new Promise((res) => {
+    const input = h('input', { type: 'file', accept: (kind === 'qr' ? PWC.QR_TYPES : PWC.DOC_TYPES).join(','), class: 'sr-only', tabindex: '-1', 'aria-hidden': 'true', 'data-pick': kind });
+    const done = (v) => { input.remove(); res(v); };
+    input.addEventListener('cancel', () => done(null));
+    input.addEventListener('change', () => {
+      const f = input.files && input.files[0];
+      if (!f) return done(null);
+      const err = PWC.checkFile(f, kind);
+      if (err) { ui.toast(err); return done(null); }
+      done(f.slice(0, f.size, f.type)); // mesmos bytes, como Blob
+    });
+    document.body.append(input);
+    input.click();
+  });
+}
+
+/* ======================================================================
    Autenticação: só guarda salt + hash. Biometria via WebAuthn local.
    ====================================================================== */
 const auth = {
@@ -453,15 +604,19 @@ const auth = {
     const v = store.get(K.auth) || {};
     const bio = v.bio && typeof v.bio === 'object' ? v.bio : {};
     return {
-      salt: str(v.salt, '', 64), hash: str(v.hash, '', 64),
+      salt: str(v.salt, '', 64), hash: str(v.hash, '', 64), none: v.none === true,
       bio: { enabled: bio.enabled === true && typeof bio.credId === 'string', credId: str(bio.credId, '', 1024) }
     };
   },
   hasPassword() { const a = this.get(); return /^[0-9a-f]{64}$/.test(a.hash) && a.salt.length >= 16; },
+  /* Senha é opcional: "configurado" = tem senha ou o usuário escolheu entrar sem senha. */
+  configured() { return this.hasPassword() || this.get().none; },
+  clear() { return store.set(K.auth, { salt: '', hash: '', none: true, bio: { enabled: false, credId: '' } }); },
   async setPassword(pw) {
     const a = this.get();
     a.salt = toHex(randBytes(16));
     a.hash = await sha256Hex(a.salt + ':' + pw);
+    a.none = false;
     return store.set(K.auth, a);
   },
   async check(pw) {
@@ -728,7 +883,7 @@ function setTabs(active) {
   });
 }
 function buildTabs() {
-  const defs = { carteira: ['wallet', 'Carteira'], servicos: ['tagHeart', 'Serviços'], opcoes: ['menu', 'Opções'] };
+  const defs = { carteira: ['doc', 'Documentos'], servicos: ['tagHeart', 'Serviços'], opcoes: ['menu', 'Opções'] };
   $('#tabbar').querySelectorAll('.tab').forEach((b) => {
     const [ic, label] = defs[b.dataset.tab];
     b.replaceChildren(icon(ic), h('span', null, label));
@@ -759,7 +914,7 @@ function applySettings() {
 function logoNode(big) {
   const s = db.settings();
   if (s.logo) return h('img', { src: s.logo, alt: 'Logo de ' + s.appName });
-  const ph = h('div', { class: 'logo-ph', role: 'img', 'aria-label': 'Logo não definida' }, icon('wallet'));
+  const ph = h('div', { class: 'logo-ph', role: 'img', 'aria-label': 'Logo não definida' }, icon('doc'));
   if (big) { ph.style.width = '120px'; ph.style.height = '120px'; }
   return ph;
 }
@@ -784,7 +939,8 @@ function render() {
   view.scrollTop = 0;
   document.body.classList.remove('gate');
   setHeader('');
-  if (!auth.hasPassword()) return screens.setup();
+  if (!auth.configured()) return screens.setup();
+  if (!app.unlocked && !auth.hasPassword()) app.unlocked = true; // sem senha: abre direto
   if (!app.unlocked) {
     if (name === 'faq') return screens.faq();
     if (name === 'texto') return screens.texto(param);
@@ -813,8 +969,13 @@ function unlock() {
   if (!name || name === 'esqueci' || name === 'login') go('#/carteira'); else render();
 }
 function resetAll() {
-  Object.values(K).forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } });
-  location.replace(location.pathname + location.search);
+  Object.values(K).concat(MIGRATED_KEY).forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } });
+  const reload = () => location.replace(location.pathname + location.search);
+  try {
+    if (idb.db) idb.db.close();
+    const r = indexedDB.deleteDatabase('pwc');
+    r.onsuccess = r.onerror = r.onblocked = reload;
+  } catch (e) { reload(); }
 }
 
 /* ======================================================================
@@ -876,6 +1037,185 @@ function imageSlot({ label, value, kind, round, onChange }) {
   paint();
   return h('div', { class: 'slot', 'data-slot': label }, h('span', { class: 'label' }, label), preview, input, h('div', { class: 'row-actions' }, pick, rm));
 }
+/* Slot de arquivo do documento: guarda o arquivo original (imagem ou PDF), sem compressão. */
+function fileSlot({ label, value, kind, onChange }) {
+  let current = value;
+  const preview = h('button', { type: 'button', class: 'slot-preview' });
+  const pick = h('button', { type: 'button', class: 'btn small outline' });
+  const rm = h('button', { type: 'button', class: 'btn small ghost' }, 'Remover');
+  const choose = async () => {
+    const f = await pickFile(kind);
+    if (!f) return;
+    current = f; onChange(f); paint();
+  };
+  const paint = () => {
+    preview.replaceChildren(!current ? icon('image')
+      : isPdf(current) ? h('span', { class: 'pdf-chip' }, icon('doc'), 'PDF · ' + fmtSize(current.size))
+      : h('img', { src: srcOf(current), alt: '' }));
+    preview.classList.toggle('has', !!current);
+    preview.setAttribute('aria-label', current ? 'Ver ' + label : 'Enviar ' + label);
+    pick.textContent = current ? 'Trocar' : 'Enviar';
+    rm.hidden = !current;
+  };
+  preview.addEventListener('click', () => (!current ? choose() : isPdf(current) ? openBlob(current) : ui.viewer(srcOf(current), label)));
+  pick.addEventListener('click', choose);
+  rm.addEventListener('click', () => { current = null; onChange(null); paint(); });
+  paint();
+  return h('div', { class: 'slot', 'data-slot': label }, h('span', { class: 'label' }, label), preview, h('div', { class: 'row-actions' }, pick, rm));
+}
+
+/* Zoom por pinça, duplo toque e arrastar (só na tela). */
+function attachZoom(stage, content) {
+  let s = 1, tx = 0, ty = 0, lastTap = 0, lastD = 0, moved = false, start = null;
+  const pts = new Map();
+  const local = (e) => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const clamp = () => {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    tx = Math.min(0, Math.max(W - W * s, tx)); ty = Math.min(0, Math.max(H - H * s, ty));
+  };
+  const apply = () => {
+    content.style.transform = s === 1 ? '' : 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+    stage.classList.toggle('zoomed', s > 1);
+    stage.dataset.zoom = s.toFixed(2);
+  };
+  const zoomAt = (ns, cx, cy) => {
+    ns = Math.min(5, Math.max(1, ns));
+    tx = cx - (cx - tx) * (ns / s); ty = cy - (cy - ty) * (ns / s); s = ns;
+    if (s === 1) { tx = 0; ty = 0; }
+    clamp(); apply();
+  };
+  stage.addEventListener('pointerdown', (e) => {
+    pts.set(e.pointerId, local(e));
+    moved = false; start = local(e);
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; lastD = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    if (s > 1 || pts.size === 2) { try { stage.setPointerCapture(e.pointerId); } catch (x) { /* ignora */ } }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    const p = local(e), prev = pts.get(e.pointerId);
+    pts.set(e.pointerId, p);
+    if (start && Math.hypot(p[0] - start[0], p[1] - start[1]) > 8) moved = true;
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (lastD > 0) zoomAt(s * (d / lastD), (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      lastD = d;
+    } else if (s > 1) { tx += p[0] - prev[0]; ty += p[1] - prev[1]; clamp(); apply(); }
+  });
+  const end = (e) => {
+    const wasSingle = pts.size === 1;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) lastD = 0;
+    if (e.type !== 'pointerup' || !wasSingle || moved) return;
+    const now = Date.now();
+    if (now - lastTap < 320) {
+      lastTap = 0;
+      const [x, y] = local(e);
+      if (s > 1) zoomAt(1, x, y); else zoomAt(2.5, x, y);
+    } else lastTap = now;
+  };
+  ['pointerup', 'pointercancel'].forEach((t) => stage.addEventListener(t, end));
+  stage.addEventListener('dblclick', (e) => e.preventDefault());
+}
+
+/* Exibição do documento (imagem ou PDF), com orientação e giro salvos. */
+let relayout = null;
+window.addEventListener('resize', () => { if (relayout) relayout(); });
+function docPanel(doc, key, label) {
+  const blob = doc[key];
+  const content = h('div', { class: 'zcontent' });
+  const stage = h('div', { class: 'zstage', 'data-kind': isPdf(blob) ? 'pdf' : 'image' }, content);
+  if (isPdf(blob)) {
+    renderPdf(blob, stage, content, doc);
+    relayout = null;
+  } else {
+    const img = h('img', { src: srcOf(blob), alt: label + ' do documento', class: 'rimg', draggable: 'false' });
+    const box = h('div', { class: 'rbox' }, img);
+    content.append(box);
+    const layout = () => {
+      if (!box.isConnected) return;
+      const W = stage.clientWidth, iw = img.naturalWidth, ih = img.naturalHeight;
+      if (!W || !iw || !ih) return;
+      const r = PWC.effectiveRotation(doc.orient, iw, ih, doc.rot);
+      const f = PWC.fitBox(W, iw, ih, r);
+      img.style.width = f.elW + 'px'; img.style.height = f.elH + 'px';
+      img.style.transform = 'translate(-50%, -50%) rotate(' + r + 'deg)';
+      box.style.height = f.boxH + 'px';
+      stage.dataset.rotation = r;
+    };
+    img.addEventListener('load', () => requestAnimationFrame(layout));
+    requestAnimationFrame(layout);
+    relayout = layout;
+  }
+  attachZoom(stage, content);
+  return stage;
+}
+
+/* PDF com pdf.js (copiado em ./vendor), todas as páginas em rolagem vertical. */
+let pdfjsP = null;
+function loadPdfjs() {
+  if (!pdfjsP) {
+    pdfjsP = import('./vendor/pdf.min.mjs').then((m) => { m.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs'; return m; });
+    pdfjsP.catch(() => { pdfjsP = null; });
+  }
+  return pdfjsP;
+}
+async function renderPdf(blob, stage, content, doc) {
+  content.append(h('p', { class: 'muted pdf-msg' }, 'Abrindo PDF…'));
+  try {
+    const pdfjs = await loadPdfjs();
+    // Cópia dos bytes para o pdf.js; o Blob guardado não é tocado.
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false }).promise;
+    content.replaceChildren();
+    const W = stage.clientWidth || 320;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    for (let n = 1; n <= pdf.numPages; n++) {
+      if (!stage.isConnected) break;
+      const page = await pdf.getPage(n);
+      const v0 = page.getViewport({ scale: 1 });
+      const r = PWC.effectiveRotation(doc.orient, v0.width, v0.height, doc.rot);
+      const rotation = (page.rotate + r) % 360;
+      const v1 = page.getViewport({ scale: 1, rotation });
+      const vp = page.getViewport({ scale: (W / v1.width) * dpr, rotation });
+      const c = h('canvas', { class: 'pdf-page', width: Math.floor(vp.width), height: Math.floor(vp.height), role: 'img', 'aria-label': 'Página ' + n + ' de ' + pdf.numPages });
+      c.style.width = W + 'px'; c.style.height = (W * v1.height / v1.width) + 'px';
+      content.append(c);
+      if (n === 1) stage.dataset.rotation = r;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    }
+    stage.dataset.pages = pdf.numPages;
+  } catch (e) {
+    content.replaceChildren(h('div', { class: 'doc-empty' }, icon('doc'),
+      h('p', { class: 'muted' }, 'Não foi possível exibir este PDF aqui.'),
+      h('button', { type: 'button', class: 'btn outline small', onclick: () => openBlob(blob) }, 'Abrir PDF')));
+  }
+}
+
+/* QR Code anexado: a imagem enviada, sem alteração. O tempo só oculta por privacidade. */
+function qrPanel(blob) {
+  const img = h('img', { src: srcOf(blob), alt: 'QR Code anexado', draggable: 'false' });
+  const again = h('button', { type: 'button', class: 'btn primary qr-again', hidden: true }, 'Tocar para mostrar de novo');
+  const frame = h('div', { class: 'qr-frame' }, img, again);
+  const fill = h('div', { class: 'qr-fill' });
+  const bar = h('div', { class: 'qr-bar', role: 'progressbar', 'aria-label': 'Tempo até ocultar o QR Code', 'aria-valuemin': 0, 'aria-valuemax': PWC.QR_SECONDS }, fill);
+  const time = h('p', { class: 'qr-time' });
+  let started = Date.now(), seen = false;
+  const tick = () => {
+    if (frame.isConnected) seen = true;
+    else if (seen) { clearInterval(timer); return; }
+    const st = PWC.qrState(started, Date.now());
+    time.textContent = PWC.fmtTimer(st.remaining);
+    fill.style.width = (st.progress * 100) + '%';
+    bar.setAttribute('aria-valuenow', st.remaining);
+    frame.classList.toggle('blurred', st.blurred);
+    again.hidden = !st.blurred;
+  };
+  const timer = setInterval(tick, 250);
+  again.addEventListener('click', () => { started = Date.now(); tick(); });
+  tick();
+  return h('div', { class: 'qr-wrap' }, frame, bar, time,
+    h('p', { class: 'muted small qr-note' }, 'O QR Code é a imagem que você anexou. O tempo serve apenas para ocultá-lo por privacidade.'));
+}
 
 /* ======================================================================
    Telas
@@ -884,18 +1224,21 @@ const screens = {
   /* --- Primeira execução --- */
   setup() {
     document.body.classList.add('gate');
-    setHeader('Crie sua senha'); setTabs(null);
-    const pw = pwField('Nova senha', 'new-password');
-    const pw2 = pwField('Confirme a nova senha', 'new-password');
+    setHeader('Proteger o acesso'); setTabs(null);
+    const pw = pwField('Novo PIN ou senha', 'new-password');
+    const pw2 = pwField('Confirme o PIN ou senha', 'new-password');
     const err = h('p', { class: 'err', role: 'alert' });
-    const btn = h('button', { type: 'submit', class: 'btn primary', disabled: true }, 'Criar senha');
+    const btn = h('button', { type: 'submit', class: 'btn primary', disabled: true }, 'Criar PIN');
     const upd = () => { btn.disabled = !(pw.input.value && pw2.input.value); };
     pw.input.addEventListener('input', upd); pw2.input.addEventListener('input', upd);
+    const skip = h('button', { type: 'button', class: 'btn ghost', style: 'margin-top:10px', onclick: () => {
+      if (auth.clear()) { app.unlocked = true; go('#/carteira', { replace: true }); }
+    } }, 'Continuar sem PIN');
     const form = h('form', { novalidate: true },
       h('div', { class: 'gate-logo' }, logoNode(true)),
-      h('h2', { class: 'title' }, 'Crie sua senha'),
-      h('p', { class: 'muted' }, 'Ela protege o acesso a este aparelho. Use pelo menos 4 caracteres.'),
-      userField(), pw.wrap, pw2.wrap, err, btn);
+      h('h2', { class: 'title' }, 'Criar um PIN (opcional)'),
+      h('p', { class: 'muted' }, 'O PIN pede uma senha para abrir o app neste aparelho. Use pelo menos 4 caracteres. Você pode criar depois em Opções.'),
+      userField(), pw.wrap, pw2.wrap, err, btn, skip);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (pw.input.value.length < 4) { err.textContent = 'A senha precisa ter pelo menos 4 caracteres.'; return pw.input.focus(); }
@@ -911,7 +1254,7 @@ const screens = {
   login() {
     document.body.classList.add('gate');
     setHeader('Entrar'); setTabs(null);
-    const pw = pwField('Senha', 'current-password', { placeholder: 'Senha', hideLabel: true });
+    const pw = pwField('PIN', 'current-password', { placeholder: 'PIN', hideLabel: true });
     const err = h('p', { class: 'err', role: 'alert', id: 'loginErr' });
     const btn = h('button', { type: 'submit', class: 'btn primary', disabled: true }, 'Entrar');
     pw.input.setAttribute('aria-describedby', 'loginErr');
@@ -919,16 +1262,16 @@ const screens = {
     const form = h('form', { novalidate: true },
       h('div', { class: 'gate-logo' }, logoNode(true)),
       h('h2', { class: 'title' }, 'Acesse a sua conta'),
-      h('p', { class: 'muted' }, 'Insira sua senha para entrar.'),
+      h('p', { class: 'muted' }, 'Digite seu PIN para entrar.'),
       userField(), pw.wrap, err,
-      h('a', { class: 'forgot', href: '#/esqueci' }, 'Esqueci minha senha'),
+      h('a', { class: 'forgot', href: '#/esqueci' }, 'Esqueci meu PIN'),
       btn);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!pw.input.value) return;
       btn.disabled = true;
       if (await auth.check(pw.input.value)) return unlock();
-      err.textContent = 'Senha incorreta. Confira e tente novamente.';
+      err.textContent = 'PIN incorreto. Confira e tente novamente.';
       vibrate([60, 40, 60]);
       pw.input.parentElement.classList.remove('shake'); void pw.input.offsetWidth;
       pw.input.parentElement.classList.add('shake');
@@ -956,59 +1299,91 @@ const screens = {
       h('p', { class: 'muted' }, 'Este aplicativo não usa servidor: a senha não fica guardada em lugar nenhum, apenas uma impressão digital dela. Para voltar a usar, apague os dados deste aparelho e crie uma nova senha.'),
       h('p', { class: 'muted' }, 'Se você tiver um backup exportado, poderá importá-lo depois em Opções > Chat de atendimento > Personalizar aplicativo.'),
       h('button', { type: 'button', class: 'btn danger', onclick: async () => {
-        if (!(await ui.confirm('Apagar todos os dados?', 'Carteiras, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
+        if (!(await ui.confirm('Apagar todos os dados?', 'Documentos, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
         if (!(await ui.confirm('Tem certeza?', 'Esta ação não pode ser desfeita.', 'Apagar tudo', true))) return;
         resetAll();
       } }, 'Apagar dados e recomeçar'));
   },
 
-  /* --- Carteira --- */
+  /* --- Documentos (início) --- */
   carteira() {
-    setHeader('Carteira'); setTabs('carteira');
-    const wallets = db.wallets();
-    view.append(h('h2', { class: 'section' }, 'Válidas'));
+    setHeader('Documentos'); setTabs('carteira');
+    const list = db.wallets();
     const wrap = h('div');
-    if (!wallets.length) wrap.append(h('p', { class: 'muted' }, 'Nenhuma carteira salva. Adicione a primeira.'));
-    wallets.forEach((w) => {
-      wrap.append(h('button', { type: 'button', class: 'wcard', onclick: () => go('#/carteira/' + w.id), 'aria-label': [w.tipo, w.nome, w.numero].filter(Boolean).join(', ') + '. Abrir carteira' },
-        h('span', { class: 'avatar' }, w.avatar ? h('img', { src: w.avatar, alt: '' }) : null),
-        h('span', { class: 'wlines' }, h('span', { class: 'wl1' }, w.tipo || 'Sem tipo'), h('span', { class: 'wl2' }, w.nome || 'Sem nome'), h('span', { class: 'wl3' }, w.numero || '—')),
+    if (!list.length) wrap.append(h('p', { class: 'muted' }, 'Nenhum documento salvo. Adicione o primeiro.'));
+    list.forEach((w) => {
+      const name = w.nome || w.tipo || 'Sem nome';
+      const thumbSrc = w.front && !isPdf(w.front) ? srcOf(w.front) : w.avatar;
+      const date = 'Incluído em ' + new Date(w.createdAt).toLocaleDateString('pt-BR');
+      wrap.append(h('button', { type: 'button', class: 'wcard', 'data-doc': w.id, onclick: () => go('#/carteira/' + w.id), 'aria-label': name + ', ' + date + '. Abrir documento' },
+        h('span', { class: 'wthumb' }, thumbSrc ? h('img', { src: thumbSrc, alt: '' }) : icon(isPdf(w.front) ? 'doc' : 'image')),
+        h('span', { class: 'wlines' },
+          w.tipo && w.nome ? h('span', { class: 'wl1' }, w.tipo) : null,
+          h('span', { class: 'wl2' }, name),
+          h('span', { class: 'wl3' }, date)),
         h('span', { class: 'chev' }, icon('chevR'))));
     });
-    view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar carteira'));
+    view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar documento'));
   },
 
-  /* Documento já salvo: só a foto, com abas Frente / Verso / QR Code. */
+  /* Documento salvo: abas Frente / Verso (o documento) e QR Code (só se anexado). */
   walletView(id) {
-    const w = db.wallets().find((x) => x.id === id);
+    const w = docs.get(id);
     if (!w) return go('#/carteira', { replace: true });
     if (!(w.front || w.back || w.qr)) return go('#/editar/' + w.id, { replace: true });
-    const tabs = [['front', 'Frente'], ['back', 'Verso'], ['qr', 'QR Code']];
-    let cur = tabs.find(([k]) => w[k])[0];
-    const label = () => tabs.find(([k]) => k === cur)[1];
-    const title = [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Documento';
-    const shareBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Encaminhar foto do documento', onclick: () => { if (w[cur]) shareDocImage(w[cur], title + ' - ' + label()); else ui.toast('Esta aba não tem imagem.'); } }, icon('share'));
-    setHeader(title, { back: '#/carteira', action: shareBtn }); setTabs('carteira');
+    const tabs = () => [['front', 'Frente'], ['back', 'Verso']].concat(w.qr ? [['qr', 'QR Code']] : []);
+    let cur = w.front ? 'front' : w.back ? 'back' : 'qr';
+    const label = () => tabs().find(([k]) => k === cur)[1];
+    const title = () => w.nome || w.tipo || 'Documento';
+    const canShare = () => cur !== 'qr' && w[cur] && !isPdf(w[cur]);
+    const shareBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Encaminhar foto do documento', onclick: () => { if (canShare()) shareDocImage(srcOf(w[cur]), title() + ' - ' + label()); } }, icon('share'));
     const bar = h('div', { class: 'seg', role: 'tablist', 'aria-label': 'Partes do documento' });
     const stage = h('div', { class: 'doc-stage' });
+    const rotateBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+      w.rot = PWC.normRot(w.rot + 90);
+      await docs.save(w);
+      paint();
+    } }, 'Girar');
+    const renameBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+      const r = await ui.form('Editar nome', [{ name: 'nome', label: 'Nome do documento', value: w.nome || w.tipo, max: 120 }]);
+      if (!r || !r.nome.trim()) return;
+      w.nome = r.nome.trim();
+      if (await docs.save(w)) { ui.toast('Nome salvo.'); setHeader(title(), { back: '#/carteira', action: shareBtn }); }
+    } }, 'Editar nome');
+    const swapBtn = h('button', { type: 'button', class: 'btn outline', onclick: async () => {
+      const f = await pickFile(cur === 'qr' ? 'qr' : 'doc');
+      if (!f) return;
+      w[cur] = f;
+      if (await docs.save(w)) { ui.toast('Arquivo trocado.'); paint(); }
+    } }, 'Trocar arquivo');
+    const delBtn = h('button', { type: 'button', class: 'btn danger-outline', onclick: async () => {
+      if (!(await ui.confirm('Excluir documento?', 'O documento e os arquivos dele serão apagados deste aparelho.', 'Excluir', true))) return;
+      if (await docs.remove(w.id)) { ui.toast('Documento excluído.'); go('#/carteira', { replace: true }); }
+    } }, 'Excluir');
     const paint = () => {
-      bar.replaceChildren(...tabs.map(([k, t]) => h('button', { type: 'button', role: 'tab', id: 'tab_' + k, class: 'seg-btn', 'aria-selected': String(k === cur), onclick: () => { cur = k; paint(); } }, t)));
+      const t = tabs();
+      bar.style.gridTemplateColumns = 'repeat(' + t.length + ', 1fr)';
+      bar.replaceChildren(...t.map(([k, txt]) => h('button', { type: 'button', role: 'tab', id: 'tab_' + k, class: 'seg-btn', 'aria-selected': String(k === cur), onclick: () => { cur = k; paint(); } }, txt)));
       stage.setAttribute('role', 'tabpanel'); stage.setAttribute('aria-labelledby', 'tab_' + cur);
-      stage.replaceChildren(w[cur]
-        ? h('button', { type: 'button', class: 'doc-img', 'aria-label': 'Ver ' + label() + ' em tela cheia', onclick: () => ui.viewer(w[cur], label()) }, h('img', { src: w[cur], alt: label() + ' do documento' }))
-        : h('div', { class: 'doc-empty' }, icon('image'), h('p', { class: 'muted' }, label() + ': sem imagem.'), h('button', { type: 'button', class: 'btn outline small', onclick: () => go('#/editar/' + w.id) }, 'Adicionar imagem')));
+      shareBtn.hidden = !canShare();
+      rotateBtn.hidden = cur === 'qr' || !w[cur];
+      swapBtn.textContent = w[cur] ? 'Trocar arquivo' : 'Adicionar arquivo';
+      if (cur === 'qr') stage.replaceChildren(qrPanel(w.qr));
+      else if (w[cur]) stage.replaceChildren(docPanel(w, cur, label()));
+      else stage.replaceChildren(h('div', { class: 'doc-empty' }, icon('image'), h('p', { class: 'muted' }, label() + ': sem arquivo.')));
     };
+    setHeader(title(), { back: '#/carteira', action: shareBtn }); setTabs('carteira');
     paint();
-    view.append(bar, stage, h('button', { type: 'button', class: 'btn ghost', onclick: () => go('#/editar/' + w.id) }, icon('pencil'), 'Editar documento'));
+    view.append(bar, stage, h('div', { class: 'doc-actions' }, rotateBtn, renameBtn, swapBtn, delBtn),
+      h('button', { type: 'button', class: 'btn ghost', onclick: () => go('#/editar/' + w.id) }, icon('pencil'), 'Editar documento'));
   },
 
   walletForm(id) {
-    const list = db.wallets();
     const isNew = id === 'nova';
-    const existing = list.find((w) => w.id === id);
+    const existing = docs.get(id);
     if (!isNew && !existing) return go('#/carteira', { replace: true });
-    const draft = existing ? { ...existing } : { id: uid(), tipo: '', nome: '', numero: '', front: null, back: null, qr: null, avatar: null };
-    setHeader(isNew ? 'Nova carteira' : 'Editar carteira', { back: '#/carteira' }); setTabs(null);
+    const draft = existing ? { ...existing } : { id: uid(), tipo: '', nome: '', numero: '', front: null, back: null, qr: null, avatar: null, createdAt: Date.now(), orient: 'h', rot: 0 };
+    setHeader(isNew ? 'Novo documento' : 'Editar documento', { back: '#/carteira' }); setTabs(null);
     const field = (key, label, extra = {}) => {
       const fid = 'w_' + key;
       const input = h('input', { id: fid, type: 'text', maxlength: extra.max || 120, autocomplete: 'off', ...extra.attrs });
@@ -1016,33 +1391,38 @@ const screens = {
       input.addEventListener('input', () => { draft[key] = input.value; });
       return h('div', { class: 'field' }, h('label', { for: fid }, label), input);
     };
+    const orientSeg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Orientação de leitura', style: 'grid-template-columns:1fr 1fr' });
+    const paintOrient = () => orientSeg.replaceChildren(...[['h', 'Horizontal'], ['v', 'Vertical']].map(([k, t]) =>
+      h('button', { type: 'button', class: 'seg-btn', 'data-orient': k, 'aria-pressed': String(draft.orient === k), onclick: () => { draft.orient = k; paintOrient(); } }, t)));
+    paintOrient();
     const err = h('p', { class: 'err', role: 'alert' });
-    const save = () => {
+    const hasFile = (d) => !!(d.front || d.back || d.qr);
+    const saveBtn = h('button', { type: 'button', class: 'btn primary', onclick: async () => {
       draft.tipo = draft.tipo.trim(); draft.nome = draft.nome.trim(); draft.numero = draft.numero.trim();
-      if (!draft.tipo && !draft.nome) { err.textContent = 'Preencha pelo menos o tipo ou o nome.'; return; }
-      const next = db.wallets();
-      const i = next.findIndex((w) => w.id === draft.id);
-      if (i >= 0) next[i] = draft; else next.push(draft);
-      if (store.set(K.wallets, next)) { ui.toast('Carteira salva.'); go((draft.front || draft.back || draft.qr) ? '#/carteira/' + draft.id : '#/carteira', { replace: true }); }
-    };
+      if (!draft.tipo && !draft.nome) { err.textContent = 'Preencha pelo menos o nome.'; return; }
+      saveBtn.disabled = true;
+      if (await docs.save(draft)) { ui.toast('Documento salvo.'); go(hasFile(draft) ? '#/carteira/' + draft.id : '#/carteira', { replace: true }); }
+      else saveBtn.disabled = false;
+    } }, 'Salvar');
     const del = async () => {
-      if (!(await ui.confirm('Excluir carteira?', 'Esta carteira e as imagens dela serão apagadas deste aparelho.', 'Excluir', true))) return;
-      if (store.set(K.wallets, db.wallets().filter((w) => w.id !== draft.id))) { ui.toast('Carteira excluída.'); go('#/carteira', { replace: true }); }
+      if (!(await ui.confirm('Excluir documento?', 'O documento e os arquivos dele serão apagados deste aparelho.', 'Excluir', true))) return;
+      if (await docs.remove(draft.id)) { ui.toast('Documento excluído.'); go('#/carteira', { replace: true }); }
     };
     view.append(h('div', { class: 'card' },
-      field('tipo', 'Tipo', { max: 80 }), field('nome', 'Nome', { max: 120 }), field('numero', 'Número', { max: 60 }),
-      h('h3', { class: 'sub' }, 'Imagens'),
-      h('p', { class: 'muted small' }, 'Toque em uma imagem para ver em tela cheia.'),
+      field('nome', 'Nome', { max: 120 }), field('tipo', 'Tipo (opcional)', { max: 80 }), field('numero', 'Número (opcional)', { max: 60 }),
+      h('span', { class: 'label' }, 'Orientação de leitura'), orientSeg,
+      h('h3', { class: 'sub' }, 'Arquivos'),
+      h('p', { class: 'muted small' }, 'Imagem JPG, PNG, WebP ou PDF, até 15 MB. O arquivo é guardado como está, sem alteração.'),
       h('div', { class: 'slots' },
-        imageSlot({ label: 'Avatar', value: draft.avatar, kind: 'avatar', round: true, onChange: (v) => { draft.avatar = v; } }),
-        imageSlot({ label: 'QR Code', value: draft.qr, kind: 'doc', onChange: (v) => { draft.qr = v; } }),
-        imageSlot({ label: 'Frente', value: draft.front, kind: 'doc', onChange: (v) => { draft.front = v; } }),
-        imageSlot({ label: 'Verso', value: draft.back, kind: 'doc', onChange: (v) => { draft.back = v; } })),
+        fileSlot({ label: 'Frente', value: draft.front, kind: 'doc', onChange: (v) => { draft.front = v; } }),
+        fileSlot({ label: 'Verso', value: draft.back, kind: 'doc', onChange: (v) => { draft.back = v; } }),
+        fileSlot({ label: 'QR Code', value: draft.qr, kind: 'qr', onChange: (v) => { draft.qr = v; } }),
+        imageSlot({ label: 'Avatar', value: draft.avatar, kind: 'avatar', round: true, onChange: (v) => { draft.avatar = v; } })),
       err,
       h('div', { class: 'stack' },
-        h('button', { type: 'button', class: 'btn primary', onclick: save }, 'Salvar'),
-        h('button', { type: 'button', class: 'btn outline', onclick: () => go(existing && (existing.front || existing.back || existing.qr) ? '#/carteira/' + existing.id : '#/carteira', { replace: true }) }, 'Cancelar'),
-        isNew ? null : h('button', { type: 'button', class: 'btn danger-outline', onclick: del }, 'Excluir carteira'))));
+        saveBtn,
+        h('button', { type: 'button', class: 'btn outline', onclick: () => go(existing && hasFile(existing) ? '#/carteira/' + existing.id : '#/carteira', { replace: true }) }, 'Cancelar'),
+        isNew ? null : h('button', { type: 'button', class: 'btn danger-outline', onclick: del }, 'Excluir documento'))));
   },
 
   /* --- Serviços --- */
@@ -1070,7 +1450,7 @@ const screens = {
   opcoes() {
     setHeader('Opções'); setTabs('opcoes');
     const items = [
-      ['lock', 'Alteração de senha', '#/senha'], ['finger', 'Acesso com biometria', '#/biometria'],
+      ['lock', 'PIN de acesso', '#/senha'], ['finger', 'Acesso com biometria', '#/biometria'],
       ['help', 'Perguntas frequentes', '#/faq'], ['headset', 'Chat de atendimento', null],
       ['doc', 'Termos e condições de uso', '#/texto/termos'], ['eye', 'Política de privacidade', '#/texto/privacidade']
     ];
@@ -1091,17 +1471,28 @@ const screens = {
   },
 
   senha() {
-    setHeader('Alteração de senha', { back: '#/opcoes' }); setTabs('opcoes');
-    const cur = pwField('Senha atual', 'current-password');
-    const nw = pwField('Nova senha', 'new-password');
-    const cf = pwField('Confirme a nova senha', 'new-password');
+    setHeader('PIN de acesso', { back: '#/opcoes' }); setTabs('opcoes');
+    const has = auth.hasPassword();
+    const cur = pwField('PIN atual', 'current-password');
+    const nw = pwField(has ? 'Novo PIN' : 'PIN', 'new-password');
+    const cf = pwField('Confirme o PIN', 'new-password');
     const err = h('p', { class: 'err', role: 'alert' });
-    const btn = h('button', { type: 'submit', class: 'btn primary' }, 'Alterar senha');
-    const form = h('form', { class: 'card', novalidate: true }, userField(), cur.wrap, nw.wrap, cf.wrap, err, btn);
+    const btn = h('button', { type: 'submit', class: 'btn primary' }, has ? 'Alterar PIN' : 'Criar PIN');
+    const form = h('form', { class: 'card', novalidate: true },
+      h('p', { class: 'muted small' }, has ? 'O app pede este PIN ao abrir.' : 'Sem PIN: o app abre direto. Crie um para pedir senha ao abrir.'),
+      userField(), has ? cur.wrap : null, nw.wrap, cf.wrap, err, btn);
+    if (has) {
+      form.append(h('button', { type: 'button', class: 'btn danger-outline', style: 'margin-top:12px', onclick: async () => {
+        err.textContent = '';
+        if (!(await auth.check(cur.input.value))) { err.textContent = 'Digite o PIN atual para remover.'; return cur.input.focus(); }
+        if (!(await ui.confirm('Remover PIN?', 'O app vai abrir sem pedir senha neste aparelho.', 'Remover', true))) return;
+        if (auth.clear()) { ui.toast('PIN removido.'); go('#/opcoes', { replace: true }); }
+      } }, 'Remover PIN'));
+    }
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       err.textContent = '';
-      if (!(await auth.check(cur.input.value))) { err.textContent = 'Senha atual incorreta.'; vibrate(80); return cur.input.focus(); }
+      if (has && !(await auth.check(cur.input.value))) { err.textContent = 'PIN atual incorreto.'; vibrate(80); return cur.input.focus(); }
       if (nw.input.value.length < 4) { err.textContent = 'A nova senha precisa ter pelo menos 4 caracteres.'; return nw.input.focus(); }
       if (nw.input.value !== cf.input.value) { err.textContent = 'A confirmação não confere com a nova senha.'; return cf.input.focus(); }
       btn.disabled = true;
@@ -1350,7 +1741,7 @@ const screens = {
 
     // 2 e 3. Senha e imagens do documento
     view.append(h('ul', { class: 'list' },
-      listRow({ ic: 'lock', label: 'Alterar senha de acesso', href: '#/senha' }),
+      listRow({ ic: 'lock', label: 'PIN de acesso', href: '#/senha' }),
       listRow({ ic: 'image', label: 'Imagens do documento', href: '#/imagens' })));
 
     // 4. Aparência
@@ -1394,7 +1785,7 @@ const screens = {
     });
     view.append(h('section', { class: 'card' },
       h('h2', { class: 'section' }, 'Backup'),
-      h('p', { class: 'muted small' }, 'Guarde uma cópia de tudo em um arquivo JSON. O backup inclui imagens e a impressão digital da senha, nunca a senha em texto.'),
+      h('p', { class: 'muted small' }, 'Guarde uma cópia de tudo em um arquivo JSON. O backup inclui os arquivos dos documentos (em base64) e a impressão digital do PIN, nunca o PIN em texto.'),
       importIn,
       h('div', { class: 'row-actions' },
         h('button', { type: 'button', class: 'btn outline', onclick: exportBackup }, 'Exportar backup'),
@@ -1403,9 +1794,9 @@ const screens = {
     // 6. Apagar tudo
     view.append(h('section', { class: 'card' },
       h('h2', { class: 'section' }, 'Apagar dados'),
-      h('p', { class: 'muted small' }, 'Remove carteiras, imagens, textos, mensagens e a senha deste aparelho.'),
+      h('p', { class: 'muted small' }, 'Remove documentos, imagens, textos, mensagens e a senha deste aparelho.'),
       h('button', { type: 'button', class: 'btn danger', onclick: async () => {
-        if (!(await ui.confirm('Apagar todos os dados?', 'Carteiras, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
+        if (!(await ui.confirm('Apagar todos os dados?', 'Documentos, imagens, textos, mensagens e senha serão apagados deste aparelho.', 'Continuar', true))) return;
         if (!(await ui.confirm('Tem certeza?', 'Esta ação não pode ser desfeita. Exporte um backup antes se quiser guardar os dados.', 'Apagar tudo', true))) return;
         resetAll();
       } }, 'Apagar todos os dados')));
@@ -1414,12 +1805,13 @@ const screens = {
   imagens() {
     setHeader('Imagens do documento', { back: '#/personalizar' }); setTabs('opcoes');
     const wallets = db.wallets();
-    if (!wallets.length) view.append(h('p', { class: 'muted' }, 'Nenhuma carteira salva. Adicione uma na aba Carteira.'));
+    if (!wallets.length) view.append(h('p', { class: 'muted' }, 'Nenhum documento salvo. Adicione um na aba Documentos.'));
     wallets.forEach((w) => {
-      const thumb = (src, label) => h('button', { type: 'button', class: 'thumb', 'aria-label': src ? 'Ver ' + label : label + ': sem imagem', onclick: () => (src ? ui.viewer(src, label) : go('#/editar/' + w.id)) },
-        src ? h('img', { src, alt: '' }) : [icon('image'), h('span', null, label)]);
+      const thumb = (b, label) => h('button', { type: 'button', class: 'thumb', 'aria-label': b ? 'Ver ' + label : label + ': sem arquivo',
+        onclick: () => (!b ? go('#/editar/' + w.id) : isPdf(b) ? openBlob(b) : ui.viewer(srcOf(b), label)) },
+        !b ? [icon('image'), h('span', null, label)] : isPdf(b) ? [icon('doc'), h('span', null, 'PDF')] : h('img', { src: srcOf(b), alt: '' }));
       view.append(h('section', { class: 'card' },
-        h('h3', { class: 'sub' }, [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Carteira'),
+        h('h3', { class: 'sub' }, [w.tipo, w.nome].filter(Boolean).join(' — ') || 'Documento'),
         h('div', { class: 'thumbs' }, thumb(w.front, 'Frente'), thumb(w.back, 'Verso'), thumb(w.qr, 'QR Code')),
         h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/editar/' + w.id) }, 'Editar imagens')));
     });
@@ -1479,12 +1871,14 @@ function openFile(f) {
   } catch (e) { ui.toast('Não foi possível abrir este PDF.'); }
 }
 
-function exportBackup() {
+async function exportBackup() {
   const data = {};
-  Object.entries(K).forEach(([name, key]) => { const v = store.get(key); if (v !== null) data[name] = v; });
-  const payload = { app: 'pwa-carteira', version: 1, exportedAt: new Date().toISOString(), data };
+  Object.entries(K).forEach(([name, key]) => { if (name === 'wallets') return; const v = store.get(key); if (v !== null) data[name] = v; });
+  try { data.docs = await Promise.all(docs.list.map((d) => PWC.encodeDoc(d))); }
+  catch (e) { return ui.toast('Não foi possível ler os arquivos para o backup.'); }
+  const payload = { app: 'pwa-carteira', version: 2, exportedAt: new Date().toISOString(), data };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-  const a = h('a', { href: url, download: 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
+  const a = h('a', { href: url, download: 'documentos-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   ui.toast('Backup exportado.');
@@ -1494,23 +1888,35 @@ async function importBackup(file) {
   let payload;
   try { payload = JSON.parse(await file.text()); } catch (e) { return ui.toast('Arquivo inválido: não é um backup JSON.'); }
   if (!payload || payload.app !== 'pwa-carteira' || !payload.data || typeof payload.data !== 'object') return ui.toast('Este arquivo não é um backup deste aplicativo.');
+  // Documentos: versão 2 traz arquivos em base64; versão 1 (antiga) traz imagens em data URL.
+  let newDocs = null;
+  try {
+    if (Array.isArray(payload.data.docs)) newDocs = payload.data.docs.map((o, i) => normalizeDoc(PWC.decodeDoc(o), i));
+    else if (Array.isArray(payload.data.wallets)) newDocs = payload.data.wallets.filter((o) => o && typeof o === 'object').map((o, i) => legacyToDoc(o, i, Date.now()));
+  } catch (e) { return ui.toast('Backup com arquivos inválidos. Nada foi alterado.'); }
   if (!(await ui.confirm('Importar backup?', 'Os dados atuais deste aparelho serão substituídos pelos do arquivo.', 'Importar'))) return;
   const old = {};
   Object.values(K).forEach((k) => { try { old[k] = localStorage.getItem(k); } catch (e) { old[k] = null; } });
+  const restore = () => Object.entries(old).forEach(([k, v]) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (x) { /* ignora */ } });
   try {
     for (const [name, key] of Object.entries(K)) {
-      if (!(name in payload.data)) continue;
+      if (name === 'wallets' || !(name in payload.data)) continue;
       let v = payload.data[name];
       if (name === 'auth') {
         // A credencial biométrica pertence a outro aparelho: desliga.
-        if (!v || typeof v !== 'object' || !/^[0-9a-f]{64}$/.test(v.hash) || typeof v.salt !== 'string') continue;
-        v = { salt: v.salt, hash: v.hash, bio: { enabled: false, credId: '' } };
+        if (v && v.none === true && !v.hash) v = { salt: '', hash: '', none: true, bio: { enabled: false, credId: '' } };
+        else if (!v || typeof v !== 'object' || !/^[0-9a-f]{64}$/.test(v.hash) || typeof v.salt !== 'string') continue;
+        else v = { salt: v.salt, hash: v.hash, bio: { enabled: false, credId: '' } };
       }
       localStorage.setItem(key, JSON.stringify(v));
     }
   } catch (e) {
-    Object.entries(old).forEach(([k, v]) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (x) { /* ignora */ } });
+    restore();
     return ui.toast('Espaço insuficiente para importar este backup. Seus dados atuais foram mantidos.');
+  }
+  if (newDocs) {
+    try { await docs.replaceAll(newDocs); }
+    catch (e) { restore(); return ui.toast('Não foi possível guardar os documentos do backup. Seus dados atuais foram mantidos.'); }
   }
   app.unlocked = false;
   applySettings();
@@ -1530,11 +1936,11 @@ function boot() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => applySettings()).catch(() => {}));
   }
-  setTimeout(() => {
+  Promise.all([docs.init(), new Promise((r) => setTimeout(r, 1700))]).then(() => {
     render();
     splash.classList.add('hide');
     setTimeout(() => splash.remove(), 300);
-  }, 1700);
+  });
 }
 boot();
 </script>

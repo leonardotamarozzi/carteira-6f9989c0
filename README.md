@@ -1,13 +1,19 @@
-# Carteira de documentos (PWA offline)
+# Meus Documentos (PWA offline)
 
-Site instalável, 100% offline e gratuito. HTML + CSS + JS puro, sem dependências,
-sem backend, sem analytics. Todos os dados ficam no `localStorage` do aparelho.
+Organizador pessoal de documentos (cartões, comprovantes, ingressos, receitas, PDFs).
+Instalável, 100% offline e gratuito. HTML + CSS + JS puro, sem build, sem backend,
+sem analytics. Os arquivos ficam no IndexedDB do aparelho; configurações no `localStorage`.
+Nada é enviado para fora do navegador.
 
 ## Arquivos
 
 | Arquivo | Função |
 | --- | --- |
-| `index.html` | App inteiro (CSS e JS embutidos: store, router, telas, utilitários) |
+| `index.html` | App (CSS e JS embutidos: armazenamento, router, telas) |
+| `lib.js` | Lógica pura testável: orientação, cronômetro do QR, base64/backup, SHA-256 |
+| `tests/lib.test.js` | Testes com `node:test` (sem dependências) |
+| `vendor/` | pdf.js 4.10.38 (build legacy, Apache-2.0) para exibir PDFs offline |
+| `DECISIONS.md` | Decisões tomadas onde o pedido deixava em aberto |
 | `manifest.json` | Manifesto do PWA (`start_url`/`scope` relativos, ícones `any` e `maskable`) |
 | `sw.js` | Service Worker: cache-first do app shell, versão de cache e limpeza no `activate` |
 | `icon-192.png`, `icon-512.png` | Ícones neutros |
@@ -20,6 +26,12 @@ python -m http.server 8080
 ```
 
 Abra `http://localhost:8080`. (Ou `npx serve .`.) Abrir o arquivo direto (`file://`) não ativa o Service Worker.
+
+## Testes
+
+```bash
+node --test "tests/*.test.js"
+```
 
 ## Instalar
 
@@ -35,7 +47,7 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v7` → `v8`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v8` → `v9`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 
@@ -55,22 +67,27 @@ já foi instalado, o nome do ícone só muda ao reinstalar.
 - **Fonte:** fonte do sistema (`system-ui`), já que fontes externas não eram permitidas.
 - **Sessão:** o app pede a senha a cada abertura/recarga (o desbloqueio fica só na memória).
 - **Após criar a senha** o app leva ao login, como no fluxo pedido.
-- **Documento salvo:** ao tocar numa carteira que já tem imagem, abre só a foto, com abas Frente/Verso/QR Code e uma seta no topo para encaminhar (compartilhar do aparelho; sem suporte, baixa o arquivo). Sem imagem ainda, abre o formulário. "Editar documento" volta ao formulário.
-- **Formulário de carteira** em tela cheia (rota `#/carteira/<id>`), para o botão Voltar do celular funcionar.
+- **Documento salvo:** abre o arquivo com abas Frente/Verso e, se houver QR anexado, QR Code. Botões Girar, Editar nome, Trocar arquivo e Excluir. A seta no topo encaminha a foto (imagem) dentro do molde; some em PDF e no QR. Sem arquivo ainda, abre o formulário.
+- **Arquivos:** JPG, PNG, WebP ou PDF até 15 MB, guardados como o arquivo original (sem recomprimir).
+- **Orientação:** Horizontal (padrão) deita imagens/páginas em retrato girando 90° só na tela; Vertical mostra em pé. Girar (+90°) fica salvo por documento. Zoom por pinça e duplo toque.
+- **QR Code anexado:** mostrado exatamente como enviado. Um cronômetro de 01 : 00 só oculta a imagem (desfoque) por privacidade; "Tocar para mostrar de novo" reinicia.
+- **PIN opcional:** na primeira abertura dá para continuar sem PIN; criar, trocar ou remover em Opções → PIN de acesso.
+- **Formulário do documento** em tela cheia (rota `#/editar/<id>`), para o botão Voltar do celular funcionar.
 - **Primeiro serviço:** "2ª via de". Toque simples abre a tela do serviço; clique triplo ou pressão longa de 1,2 s renomeia (no teclado: F2); a tela não mostra legenda sobre isso. Movimento acima de 10 px cancela a pressão longa.
 - **Termos, Privacidade e Ajuda** abertos pelo rodapé do login ficam somente leitura; edição só depois de entrar.
 - **Anexos do FAQ:** imagens são comprimidas (1024 px, JPEG 0,8); PDFs são guardados como estão, até 3 MB cada.
-- **Imagens:** documentos (frente, verso, QR Code) em JPEG 0,8 até 1024 px; logo sempre PNG até 512 px (preserva transparência); avatar até 512 px, PNG se tiver transparência.
+- **Imagens:** arquivos do documento (frente, verso, QR Code) guardados como enviados; logo sempre PNG até 512 px (preserva transparência); avatar até 512 px, PNG se tiver transparência.
 - **Chat:** guarda as últimas 200 mensagens; resposta automática configurável pelo ícone de engrenagem.
 - **Backup importado** desliga a biometria (a credencial pertence ao aparelho de origem) e pede login de novo.
 - **Cor de destaque com pouco contraste:** o app avisa e escolhe texto branco ou preto nos botões automaticamente.
 
 ## Segurança e limitações conhecidas
 
-- **Senha:** só é guardado `SHA-256(salt + ":" + senha)` com salt aleatório de 16 bytes. Nunca em texto puro. Usa `crypto.subtle`; fora de HTTPS/localhost (onde `crypto.subtle` não existe) usa uma implementação SHA-256 em JS embutida, com o mesmo resultado.
+- **PIN/senha:** só é guardado `SHA-256(salt + ":" + senha)` com salt aleatório de 16 bytes. Nunca em texto puro. Usa `crypto.subtle`; fora de HTTPS/localhost (onde `crypto.subtle` não existe) usa uma implementação SHA-256 em JS embutida, com o mesmo resultado.
 - **A senha é uma tela de privacidade, não criptografia.** Os dados no `localStorage` não são cifrados: quem tiver acesso ao navegador do aparelho (ferramentas de desenvolvedor) consegue lê-los. Um hash SHA-256 simples também é rápido de testar por força bruta se alguém copiar os dados; use uma senha longa.
 - **"Esqueci minha senha"** só pode apagar os dados e recomeçar, porque não há servidor para recuperar a senha. Exporte backups.
 - **Biometria (WebAuthn)** exige HTTPS (ou `localhost`) e um leitor de digital/rosto no aparelho. Sem servidor, a verificação confirma apenas que o dono do aparelho passou na biometria; não há validação criptográfica da assinatura. Se indisponível, o app mostra o motivo e mantém o interruptor desligado.
-- **Espaço:** o `localStorage` tem cerca de 5 MB. Se encher, o app avisa e não perde o que já estava salvo; o formulário continua aberto.
+- **Espaço:** os arquivos ficam no IndexedDB (cota do navegador, bem maior que os 5 MB do `localStorage`). Se encher, o app avisa e não perde o que já estava salvo.
+- **Dados antigos** (versão até v7, no `localStorage`) são migrados para o IndexedDB na primeira abertura; a cópia antiga só é apagada depois de conferida.
 - **Texto do usuário** é inserido sempre com `textContent` (nunca `innerHTML`); imagens importadas só são aceitas como `data:image/...` em base64.
 - **iOS:** vibração no erro de senha não existe no Safari (só no Android). O download do backup abre a folha de compartilhamento do iOS.
