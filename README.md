@@ -47,7 +47,7 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v9` → `v10`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v10` → `v11`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 

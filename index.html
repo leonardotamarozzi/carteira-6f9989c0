@@ -258,9 +258,9 @@
 <script>
 'use strict';
 
-/* Servidor do portão de acesso (aprovação manual). Vazio = portão desligado.
-   Exemplo depois do deploy: 'https://servidor-acesso.SEU-USUARIO.workers.dev' */
-const ACCESS_SERVER = '';
+/* Servidor do portão de acesso (aprovação manual), no Cloudflare Workers (gratuito).
+   Deixar vazio ('') desliga o portão. */
+const ACCESS_SERVER = 'https://servidor-acesso.servidor-acesso.workers.dev';
 
 /* ======================================================================
    Ícones SVG (conteúdo estático, nunca dados do usuário)
