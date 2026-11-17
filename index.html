@@ -258,6 +258,10 @@
 <script>
 'use strict';
 
+/* Servidor do portão de acesso (aprovação manual). Vazio = portão desligado.
+   Exemplo depois do deploy: 'https://servidor-acesso.SEU-USUARIO.workers.dev' */
+const ACCESS_SERVER = '';
+
 /* ======================================================================
    Ícones SVG (conteúdo estático, nunca dados do usuário)
    ====================================================================== */
@@ -594,6 +598,55 @@ function pickFile(kind) {
     document.body.append(input);
     input.click();
   });
+}
+
+/* ======================================================================
+   Portão de acesso: só nome e senha de acesso vão ao servidor.
+   Documentos, arquivos, QR, backup, PIN e configurações nunca saem daqui.
+   Guardado no aparelho: token do pedido, último estado e hora da conferência.
+   ====================================================================== */
+const GATE_KEY = 'pwc.acesso';
+const gate = {
+  get() {
+    const v = store.get(GATE_KEY);
+    if (!v || typeof v !== 'object') return null;
+    return { token: str(v.token, '', 100), estado: PWC.ACCESS_STATES.includes(v.estado) ? v.estado : '', verificadoEm: Number(v.verificadoEm) || 0 };
+  },
+  set(v) {
+    try { if (v) localStorage.setItem(GATE_KEY, JSON.stringify(v)); else localStorage.removeItem(GATE_KEY); } catch (e) { /* sem localStorage */ }
+  },
+  status() { return PWC.gateStatus(this.get(), Date.now()); },
+  async api(path, { method = 'GET', body, token } = {}) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const headers = {};
+      if (body) headers['Content-Type'] = 'application/json';
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const r = await fetch(ACCESS_SERVER + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal, cache: 'no-store', credentials: 'omit' });
+      return { status: r.status, body: await r.json().catch(() => ({})) };
+    } finally { clearTimeout(t); }
+  },
+  /* Pergunta ao servidor o estado atual. Sem internet, mantém o que está guardado. */
+  async conferir() {
+    const g = this.get();
+    if (!g || !g.token) return this.status();
+    try {
+      const r = await this.api('/estado', { token: g.token });
+      if (r.status === 200 && PWC.ACCESS_STATES.includes(r.body.estado)) this.set({ ...g, estado: r.body.estado, verificadoEm: Date.now() });
+      else if (r.status === 401) this.set(null); // pedido não existe mais no servidor
+    } catch (e) { /* sem conexão: usa o estado guardado (até 7 dias se aprovado) */ }
+    return this.status();
+  }
+};
+/* Confere de novo ao voltar para o app e a cada 5 minutos; se mudou, refaz a tela. */
+async function reconferir() {
+  if (!ACCESS_SERVER || document.visibilityState !== 'visible') return;
+  const antes = gate.status();
+  const depois = await gate.conferir();
+  if (antes === depois) return;
+  if (depois !== 'liberado') app.unlocked = false;
+  render();
 }
 
 /* ======================================================================
@@ -939,6 +992,7 @@ function render() {
   view.scrollTop = 0;
   document.body.classList.remove('gate');
   setHeader('');
+  if (ACCESS_SERVER) { const st = gate.status(); if (st !== 'liberado') return screens.acesso(st); }
   if (!auth.configured()) return screens.setup();
   if (!app.unlocked && !auth.hasPassword()) app.unlocked = true; // sem senha: abre direto
   if (!app.unlocked) {
@@ -969,7 +1023,7 @@ function unlock() {
   if (!name || name === 'esqueci' || name === 'login') go('#/carteira'); else render();
 }
 function resetAll() {
-  Object.values(K).concat(MIGRATED_KEY).forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } });
+  Object.values(K).concat(MIGRATED_KEY, GATE_KEY).forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } });
   const reload = () => location.replace(location.pathname + location.search);
   try {
     if (idb.db) idb.db.close();
@@ -1221,6 +1275,80 @@ function qrPanel(blob) {
    Telas
    ====================================================================== */
 const screens = {
+  /* --- Portão de acesso (antes do PIN) --- */
+  acesso(st) {
+    document.body.classList.add('gate'); setTabs(null);
+    const telas = {
+      pendente: ['Aguardando aprovação', 'Seu pedido foi enviado ao administrador. Quando ele aprovar, toque em "Verificar agora".'],
+      negado: ['Pedido negado', 'O administrador não liberou este acesso.'],
+      revogado: ['Acesso revogado', 'O administrador retirou este acesso. Seus documentos continuam guardados neste aparelho, mas ficam ocultos.'],
+      precisa_conferir: ['Confirme seu acesso', 'Faz mais de ' + PWC.OFFLINE_DAYS + ' dias que o acesso não é confirmado. Conecte-se à internet e toque em "Verificar agora".']
+    };
+    if (telas[st]) {
+      const [titulo, texto] = telas[st];
+      setHeader(titulo);
+      const btn = h('button', { type: 'button', class: 'btn primary', id: 'gateCheck', onclick: async () => {
+        btn.disabled = true; btn.textContent = 'Verificando…';
+        const antes = gate.get();
+        const novo = await gate.conferir();
+        const depois = gate.get();
+        btn.disabled = false; btn.textContent = 'Verificar agora';
+        if (novo === st) ui.toast(depois && antes && depois.verificadoEm !== antes.verificadoEm ? 'Ainda sem mudança.' : 'Sem conexão com o servidor. Tente de novo.');
+        else render();
+      } }, 'Verificar agora');
+      view.append(
+        h('div', { class: 'gate-logo' }, logoNode(true)),
+        h('h2', { class: 'title', id: 'gateTitle' }, titulo),
+        h('p', { class: 'muted' }, texto),
+        btn,
+        h('button', { type: 'button', class: 'btn ghost', style: 'margin-top:10px', onclick: () => { gate.set(null); render(); } }, 'Usar outro nome'));
+      return;
+    }
+    // Sem pedido neste aparelho: pedir acesso ou entrar com um acesso já existente.
+    let modo = 'pedir';
+    const paint = () => {
+      const pedir = modo === 'pedir';
+      setHeader(pedir ? 'Pedir acesso' : 'Já tenho acesso');
+      view.replaceChildren();
+      const nome = h('input', { id: 'gateNome', class: 'input', type: 'text', autocomplete: 'name', maxlength: 120, autocapitalize: 'words' });
+      const pw = pwField(pedir ? 'Crie uma senha de acesso' : 'Senha de acesso', pedir ? 'new-password' : 'current-password');
+      const pw2 = pwField('Confirme a senha', 'new-password');
+      const err = h('p', { class: 'err', role: 'alert', id: 'gateErr' });
+      const btn = h('button', { type: 'submit', class: 'btn primary' }, pedir ? 'Pedir acesso' : 'Entrar');
+      const form = h('form', { novalidate: true },
+        h('div', { class: 'gate-logo' }, logoNode(true)),
+        h('h2', { class: 'title' }, pedir ? 'Pedir acesso' : 'Já tenho acesso'),
+        h('p', { class: 'muted small' }, 'Seu nome e senha de acesso são enviados ao servidor do administrador. Seus documentos ficam só neste aparelho.'),
+        h('div', { class: 'field' }, h('label', { for: 'gateNome' }, 'Nome completo'), nome),
+        pw.wrap, pedir ? pw2.wrap : null, err, btn);
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        err.textContent = '';
+        const n = PWC.cleanName(nome.value), senha = pw.input.value;
+        const ne = PWC.nameError(n);
+        if (ne) { err.textContent = ne; return nome.focus(); }
+        if (senha.length < 6) { err.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return pw.input.focus(); }
+        if (pedir && senha !== pw2.input.value) { err.textContent = 'As senhas não conferem.'; return pw2.input.focus(); }
+        btn.disabled = true;
+        let r;
+        try { r = await gate.api(pedir ? '/pedido' : '/entrar', { method: 'POST', body: { nome: n, senha } }); }
+        catch (x) { btn.disabled = false; err.textContent = 'Sem conexão com o servidor. Verifique a internet e tente de novo.'; return; }
+        btn.disabled = false;
+        if ((r.status === 200 || r.status === 201) && r.body.token) {
+          gate.set({ token: r.body.token, estado: r.body.estado, verificadoEm: Date.now() });
+          pw.input.value = ''; pw2.input.value = '';
+          return render();
+        }
+        err.textContent = r.status === 429 ? 'Muitas tentativas. Espere 15 minutos e tente de novo.'
+          : r.status === 401 ? 'Nome ou senha não conferem.'
+          : (r.body && r.body.mensagem) || 'Não foi possível concluir. Tente de novo.';
+      });
+      view.append(form, h('button', { type: 'button', class: 'btn ghost', style: 'margin-top:10px', onclick: () => { modo = pedir ? 'entrar' : 'pedir'; paint(); } },
+        pedir ? 'Já tenho acesso' : 'Fazer um pedido de acesso'));
+    };
+    paint();
+  },
+
   /* --- Primeira execução --- */
   setup() {
     document.body.classList.add('gate');
@@ -1936,7 +2064,11 @@ function boot() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => applySettings()).catch(() => {}));
   }
-  Promise.all([docs.init(), new Promise((r) => setTimeout(r, 1700))]).then(() => {
+  if (ACCESS_SERVER) {
+    document.addEventListener('visibilitychange', reconferir);
+    setInterval(reconferir, 5 * 60 * 1000);
+  }
+  Promise.all([docs.init(), ACCESS_SERVER ? gate.conferir() : null, new Promise((r) => setTimeout(r, 1700))]).then(() => {
     render();
     splash.classList.add('hide');
     setTimeout(() => splash.remove(), 300);

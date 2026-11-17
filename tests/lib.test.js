@@ -115,3 +115,24 @@ test('migração: data URL antiga vira bytes iguais', () => {
   assert.equal(Buffer.from(r.bytes).toString(), 'EXEMPLO');
   assert.equal(L.dataUrlToBytes('lixo'), null);
 });
+
+test('portão: normalização de nome igual à do servidor', () => {
+  assert.equal(L.cleanName('  Ana   EXEMPLO  Souza '), 'Ana EXEMPLO Souza');
+  assert.equal(L.nameKey('ÂNA  exemplo SOUZA'), L.nameKey('ana Exemplo souza'));
+  assert.match(L.nameError('Ana'), /nome completo/);
+  assert.equal(L.nameError('Ana Souza'), null);
+});
+
+test('portão: estados e prazo de 7 dias sem internet', () => {
+  const now = 1_800_000_000_000;
+  const dia = 24 * 60 * 60 * 1000;
+  assert.equal(L.gateStatus(null, now), 'sem_pedido');
+  assert.equal(L.gateStatus({ token: 't', estado: 'pendente', verificadoEm: now }, now), 'pendente');
+  assert.equal(L.gateStatus({ token: 't', estado: 'negado', verificadoEm: now }, now), 'negado');
+  assert.equal(L.gateStatus({ token: 't', estado: 'revogado', verificadoEm: now }, now), 'revogado');
+  assert.equal(L.gateStatus({ token: 't', estado: 'aprovado', verificadoEm: now - 6 * dia }, now), 'liberado');
+  assert.equal(L.gateStatus({ token: 't', estado: 'aprovado', verificadoEm: now - 7 * dia }, now), 'liberado');
+  assert.equal(L.gateStatus({ token: 't', estado: 'aprovado', verificadoEm: now - 7 * dia - 1 }, now), 'precisa_conferir');
+  assert.equal(L.gateStatus({ token: 't', estado: 'aprovado', verificadoEm: now + dia }, now), 'precisa_conferir', 'relógio voltou: exige conferir');
+  assert.equal(L.gateStatus({ token: '', estado: 'aprovado', verificadoEm: now }, now), 'sem_pedido');
+});

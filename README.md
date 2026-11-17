@@ -47,7 +47,7 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v8` → `v9`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v9` → `v10`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 
@@ -80,6 +80,19 @@ já foi instalado, o nome do ícone só muda ao reinstalar.
 - **Chat:** guarda as últimas 200 mensagens; resposta automática configurável pelo ícone de engrenagem.
 - **Backup importado** desliga a biometria (a credencial pertence ao aparelho de origem) e pede login de novo.
 - **Cor de destaque com pouco contraste:** o app avisa e escolhe texto branco ou preto nos botões automaticamente.
+
+## Portão de acesso (opcional)
+
+Com `ACCESS_SERVER` preenchido no topo do script do `index.html`, o app pede acesso antes de tudo:
+quem abre informa **nome completo** e cria uma **senha de acesso**; o pedido fica "pendente" até o
+administrador aprovar no painel do servidor (pasta `servidor-acesso`, fora deste repositório).
+Depois do portão vem o PIN local, como antes. Com `ACCESS_SERVER` vazio, o portão fica desligado.
+
+- **Vai ao servidor:** só o nome e a senha de acesso. Documentos, arquivos, QR Code, backup, PIN e configurações nunca saem do aparelho.
+- **No aparelho:** um token do pedido, o último estado e a hora da última conferência (`pwc.acesso`).
+- **Conferência:** ao abrir, ao voltar para o app e a cada 5 minutos. Sem internet, um acesso aprovado continua valendo por até 7 dias desde a última conferência.
+- **Negado ou revogado:** o app bloqueia e esconde os documentos; os dados locais não são apagados.
+- **Limitação:** os arquivos do app são públicos no GitHub Pages. O portão controla o fluxo do app, mas **não impede** alguém de baixar o código estático. Como os documentos de cada pessoa ficam só no aparelho dela, não há dado sensível exposto. Proteção total exigiria servir o app inteiro atrás do servidor.
 
 ## Segurança e limitações conhecidas
 

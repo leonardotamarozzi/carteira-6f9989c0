@@ -110,10 +110,35 @@
     return doc;
   }
 
+  /* Portão de acesso (aprovação no servidor). */
+  const OFFLINE_DAYS = 7; // sem internet, o acesso aprovado vale por até 7 dias desde a última conferência
+  const OFFLINE_MS = OFFLINE_DAYS * 24 * 60 * 60 * 1000;
+  const ACCESS_STATES = ['pendente', 'aprovado', 'negado', 'revogado'];
+  /* Nome: sem espaços extras. A chave ignora maiúsculas e acentos (mesma regra do servidor). */
+  function cleanName(s) {
+    return String(s || '').normalize('NFC').trim().replace(/\s+/g, ' ');
+  }
+  function nameKey(s) {
+    return cleanName(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+  function nameError(s) {
+    const n = cleanName(s);
+    return n.length < 3 || n.length > 120 || n.split(' ').length < 2 ? 'Informe o nome completo (nome e sobrenome).' : null;
+  }
+  /* Estado do portão a partir do que está guardado no aparelho.
+     'liberado' | 'sem_pedido' | 'pendente' | 'negado' | 'revogado' | 'precisa_conferir' */
+  function gateStatus(g, now) {
+    if (!g || !g.token || !ACCESS_STATES.includes(g.estado)) return 'sem_pedido';
+    if (g.estado !== 'aprovado') return g.estado;
+    const age = now - (Number(g.verificadoEm) || 0);
+    return age >= 0 && age <= OFFLINE_MS ? 'liberado' : 'precisa_conferir';
+  }
+
   const api = {
     MAX_FILE, DOC_TYPES, QR_TYPES, QR_SECONDS, FILE_SLOTS,
     checkFile, autoRotation, normRot, effectiveRotation, fitBox,
-    qrState, fmtTimer, bytesToB64, b64ToBytes, dataUrlToBytes, sha256Hex, encodeDoc, decodeDoc
+    qrState, fmtTimer, bytesToB64, b64ToBytes, dataUrlToBytes, sha256Hex, encodeDoc, decodeDoc,
+    OFFLINE_DAYS, OFFLINE_MS, ACCESS_STATES, cleanName, nameKey, nameError, gateStatus
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PWC = api;
