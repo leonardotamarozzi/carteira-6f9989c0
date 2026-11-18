@@ -99,6 +99,12 @@
   #hdrRight { justify-self: end; display: inline-flex; }
   .top-inner { grid-template-columns: 96px 1fr 96px; }
   .rbox { background: var(--surface); }
+  #view.docview { display: flex; flex-direction: column; }
+  #view.docview > * { width: 100%; flex: none; }
+  #view.docview > .doc-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 0; }
+  .doc-stage > .zstage { flex: 1; min-height: 320px; }
+  .doc-stage > .zstage[data-kind="pdf"] { overflow-y: auto; touch-action: pan-y; }
+  .btn-add { min-height: 50px; font-size: 18px; font-weight: 700; }
   .doc-caption { margin: 8px 2px 0; font-size: 12px; color: var(--muted); text-align: center; }
   .qr-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; text-align: left; background: #E8F1FB; border: 1.5px solid #1F5FA8; border-radius: 12px; color: #12355E; font-size: 13px; line-height: 1.35; }
   .qr-tip .ico { width: 26px; height: 26px; color: #1F5FA8; }
@@ -113,7 +119,7 @@
   .qr-fill { height: 100%; background: var(--accent); }
   .qr-time { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0 0 8px; }
   .qr-note { margin: 0; }
-  .wthumb { width: 56px; height: 56px; border-radius: 10px; background: #F0F0F0; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .wthumb { width: 64px; height: 64px; border-radius: 10px; background: #F0F0F0; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
   .wthumb img { width: 100%; height: 100%; object-fit: cover; }
   .wthumb-round { border-radius: 50%; }
   .profile-slot { display: flex; justify-content: center; margin-bottom: 16px; }
@@ -161,13 +167,13 @@
   .gate-footer a { color: var(--accent); font-weight: 700; text-decoration: none; display: inline-block; padding: 12px 6px; }
 
   /* ---------- Lista de documentos ---------- */
-  .wcard { width: 100%; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 0; border-radius: var(--radius); padding: 14px; margin-bottom: 12px; text-align: left; min-height: 80px; }
+  .wcard { width: 100%; display: flex; align-items: center; gap: 16px; background: var(--surface); border: 0; border-radius: 10px; padding: 18px 16px; margin-bottom: 16px; text-align: left; min-height: 118px; }
   .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--circle); overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
   .wlines { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .wlines span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wl1 { font-size: 13px; color: var(--muted); }
-  .wl2 { font-weight: 700; }
+  .wl2 { font-weight: 700; font-size: 17px; }
   .wl3 { font-size: 14px; color: var(--muted); }
   .chev { color: var(--tab-off); }
 
@@ -1204,8 +1210,9 @@ function docPanel(doc, key, label) {
       if (!box.isConnected) return;
       const W = stage.clientWidth, iw = img.naturalWidth, ih = img.naturalHeight;
       if (!W || !iw || !ih) return;
-      const H = W / PWC.FRAME_RATIO; // quadro com a proporção do cartão de referência
-      const r = PWC.effectiveRotation(doc.orient, iw, ih, doc.rot);
+      const H = stage.clientHeight; // quadro alto: do fim das abas até a barra inferior
+      if (!H) return;
+      const r = PWC.frameRotation(doc.orient, W, H, iw, ih, doc.rot);
       const f = PWC.fitContain(W, H, iw, ih, r);
       img.style.width = f.elW + 'px'; img.style.height = f.elH + 'px';
       img.style.transform = 'translate(-50%, -50%) rotate(' + r + 'deg)';
@@ -1242,7 +1249,7 @@ async function renderPdf(blob, stage, content, doc) {
       if (!stage.isConnected) break;
       const page = await pdf.getPage(n);
       const v0 = page.getViewport({ scale: 1 });
-      const r = PWC.effectiveRotation(doc.orient, v0.width, v0.height, doc.rot);
+      const r = PWC.frameRotation(doc.orient, W, stage.clientHeight || W * 1.6, v0.width, v0.height, doc.rot);
       const rotation = (page.rotate + r) % 360;
       const v1 = page.getViewport({ scale: 1, rotation });
       const vp = page.getViewport({ scale: (W / v1.width) * dpr, rotation });
@@ -1467,7 +1474,7 @@ const screens = {
           h('span', { class: 'wl3' }, date)),
         h('span', { class: 'chev' }, icon('chevR'))));
     });
-    view.append(wrap, h('button', { type: 'button', class: 'btn outline', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar documento'));
+    view.append(wrap, h('button', { type: 'button', class: 'btn outline btn-add', onclick: () => go('#/carteira/nova') }, icon('plus'), 'Adicionar documento'));
   },
 
   /* Documento salvo: abas Frente / Verso (o documento) e QR Code (só se anexado).
@@ -1526,8 +1533,9 @@ const screens = {
         h('p', { class: 'doc-caption' }, vistoEm));
     };
     cabecalho(); setTabs('carteira');
-    paint();
+    view.classList.add('docview');
     view.append(bar, stage);
+    paint();
   },
 
   walletForm(id) {

@@ -120,6 +120,18 @@
     const s = Math.min(W / vw, H / vh);
     return { elW: w * s, elH: h * s };
   }
+  /* Giro dentro de um quadro W x H (só exibição).
+     'h' (Horizontal/deitado): gira 90° quando isso deixa a imagem maior no quadro
+     (num quadro alto, documento em paisagem fica deitado; a borda esquerda vai para cima).
+     'v' (Vertical): nunca gira sozinho. rot: giro extra do botão "Girar". */
+  function frameRotation(orient, W, H, w, h, rot) {
+    let auto = 0;
+    if (orient === 'h' && W > 0 && H > 0 && w > 0 && h > 0) {
+      const reto = Math.min(W / w, H / h), girado = Math.min(W / h, H / w);
+      if (girado > reto * 1.0001) auto = 90;
+    }
+    return normRot(auto + normRot(rot));
+  }
   /* Orientação padrão: qualquer valor que não seja 'v' vira 'h' (Horizontal). */
   function normOrient(v) { return v === 'v' ? 'v' : 'h'; }
   /* "dd/mm/aaaa - hh:mm" no fuso do aparelho. */
@@ -157,7 +169,7 @@
     checkFile, autoRotation, normRot, effectiveRotation, fitBox,
     qrState, fmtTimer, bytesToB64, b64ToBytes, dataUrlToBytes, sha256Hex, encodeDoc, decodeDoc,
     OFFLINE_DAYS, OFFLINE_MS, ACCESS_STATES, cleanName, nameKey, nameError, gateStatus,
-    FRAME_RATIO, fitContain, normOrient, formatViewedAt
+    FRAME_RATIO, fitContain, frameRotation, normOrient, formatViewedAt
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PWC = api;

@@ -166,3 +166,21 @@ test('legenda: dd/mm/aaaa - hh:mm, sem palavras de validação', () => {
   assert.equal(L.formatViewedAt(new Date(2026, 0, 3, 0, 9)), '03/01/2026 - 00:09');
   assert.ok(!/atualiza|v[aá]lid/i.test('Visualizado em ' + L.formatViewedAt(new Date())));
 });
+
+test('quadro alto: documento em paisagem fica deitado (gira 90°) e cabe inteiro', () => {
+  const W = 358, H = 620; // quadro alto do celular
+  // Documento EXEMPLO em paisagem (como uma identidade): gira para preencher o quadro.
+  assert.equal(L.frameRotation('h', W, H, 1000, 680, 0), 90);
+  const f = L.fitContain(W, H, 1000, 680, 90);
+  assert.ok(f.elH <= W + 1e-9 && f.elW <= H + 1e-9, 'girado, cabe no quadro');
+  assert.ok(f.elW > L.fitContain(W, H, 1000, 680, 0).elW, 'girado fica maior que reto');
+  // Retrato no quadro alto: já preenche melhor reto, não gira.
+  assert.equal(L.frameRotation('h', W, H, 600, 900, 0), 0);
+  // Vertical nunca gira sozinho.
+  assert.equal(L.frameRotation('v', W, H, 1000, 680, 0), 0);
+  // Botão Girar soma ao automático.
+  assert.equal(L.frameRotation('h', W, H, 1000, 680, 90), 180);
+  assert.equal(L.frameRotation('v', W, H, 1000, 680, 270), 270);
+  // Quadro largo (como antes): retrato em Horizontal continua deitando.
+  assert.equal(L.frameRotation('h', 358, 123, 300, 500, 0), 90);
+});
