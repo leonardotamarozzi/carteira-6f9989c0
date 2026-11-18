@@ -108,7 +108,8 @@
   .doc-caption { margin: 8px 2px 0; font-size: 12px; color: var(--muted); text-align: center; }
   .qr-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; text-align: left; background: #E8F1FB; border: 1.5px solid #1F5FA8; border-radius: 12px; color: #12355E; font-size: 13px; line-height: 1.35; }
   .qr-tip .ico { width: 26px; height: 26px; color: #1F5FA8; }
-  .qr-tip span.linhas { display: flex; flex-direction: column; }
+  .qr-tip span.linhas { display: flex; flex-direction: column; gap: 2px; }
+  .qr-tip .qr-tipo { font-weight: 700; overflow-wrap: anywhere; }
   /* QR Code anexado: exibido como enviado; o tempo só oculta por privacidade. */
   .qr-wrap { background: var(--surface); border-radius: var(--radius); padding: 18px 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
   .qr-frame { position: relative; display: block; }
@@ -1268,7 +1269,8 @@ async function renderPdf(blob, stage, content, doc) {
 }
 
 /* QR Code anexado: a imagem enviada, sem alteração. O tempo só oculta por privacidade. */
-function qrPanel(blob) {
+function qrPanel(blob, doc) {
+  const tipo = (doc && (doc.tipo || doc.nome)) || 'documento';
   const img = h('img', { src: srcOf(blob), alt: 'QR Code anexado', draggable: 'false' });
   const again = h('button', { type: 'button', class: 'btn primary qr-again', hidden: true }, 'Tocar para mostrar de novo');
   const frame = h('div', { class: 'qr-frame' }, img, again);
@@ -1291,7 +1293,7 @@ function qrPanel(blob) {
   tick();
   return h('div', { class: 'qr-wrap' }, frame, bar, time,
     h('div', { class: 'qr-tip', role: 'note' }, icon('bulb'),
-      h('span', { class: 'linhas' }, h('span', null, 'O QR Code é a imagem que você anexou.'), h('span', null, 'O tempo serve apenas para ocultá-lo por privacidade.'))));
+      h('span', { class: 'linhas' }, h('strong', { class: 'qr-tipo' }, 'QR Code de: ' + tipo), h('span', null, 'É a imagem que você anexou. O tempo só a oculta por privacidade.'))));
 }
 
 /* ======================================================================
@@ -1527,7 +1529,7 @@ const screens = {
       bar.replaceChildren(...t.map(([k, txt]) => h('button', { type: 'button', role: 'tab', id: 'tab_' + k, class: 'seg-btn', 'aria-selected': String(k === cur), onclick: () => { cur = k; paint(); } }, txt)));
       stage.setAttribute('role', 'tabpanel'); stage.setAttribute('aria-labelledby', 'tab_' + cur);
       shareBtn.hidden = !canShare();
-      if (cur === 'qr') stage.replaceChildren(qrPanel(w.qr));
+      if (cur === 'qr') stage.replaceChildren(qrPanel(w.qr, w));
       else stage.replaceChildren(
         w[cur] ? docPanel(w, cur, label()) : h('div', { class: 'doc-empty', role: 'img', 'aria-label': label() + ' sem arquivo' }, icon('image')),
         h('p', { class: 'doc-caption' }, vistoEm));

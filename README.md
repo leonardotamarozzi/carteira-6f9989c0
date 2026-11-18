@@ -47,7 +47,7 @@ Para instalar no celular, o site precisa estar em HTTPS (veja abaixo).
 
 ## Atualizar o app
 
-Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v12` → `v13`). O novo
+Ao alterar qualquer arquivo, aumente `VERSION` em `sw.js` (`v13` → `v14`). O novo
 Service Worker baixa tudo de novo e apaga o cache antigo; a mudança aparece na
 próxima abertura do app.
 
@@ -72,7 +72,7 @@ já foi instalado, o nome do ícone só muda ao reinstalar.
 - **Orientação:** Horizontal deita imagens/páginas em retrato girando 90° só na tela; Vertical mostra em pé. O padrão fica em Personalizar aplicativo → Orientação padrão dos documentos e já vem marcado ao anexar (dá para trocar por documento). Girar (+90°) fica salvo por documento. Zoom por pinça e duplo toque.
 - **Tela do documento:** a foto ocupa um quadro alto (do fim das abas até a barra inferior), inteira e centralizada. Em Horizontal ela gira 90° quando isso a deixa maior no quadro (um documento em paisagem fica deitado, com o lado esquerdo para cima). Abaixo dela só a legenda pequena "Visualizado em dd/mm/aaaa - hh:mm" (momento em que a tela foi aberta). As ações (Girar, Editar nome, Trocar arquivo, Editar documento, Excluir) ficam no ⋯ do cabeçalho.
 - **Lista:** cada cartão mostra a foto de perfil do documento (cadastrada no formulário), nunca o arquivo do documento.
-- **QR Code:** abaixo do cronômetro, um balão azul com lâmpada explica que o QR é a imagem anexada e que o tempo só o oculta.
+- **QR Code:** abaixo do cronômetro, um balão azul com lâmpada mostra "QR Code de: <tipo do documento>" e explica que o QR é a imagem anexada e que o tempo só o oculta.
 - **QR Code anexado:** mostrado exatamente como enviado. Um cronômetro de 01 : 00 só oculta a imagem (desfoque) por privacidade; "Tocar para mostrar de novo" reinicia.
 - **PIN opcional:** na primeira abertura dá para continuar sem PIN; criar, trocar ou remover em Opções → PIN de acesso.
 - **Formulário do documento** em tela cheia (rota `#/editar/<id>`), para o botão Voltar do celular funcionar.
